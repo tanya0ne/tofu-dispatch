@@ -1,6 +1,8 @@
 import { initDb, sqlOne } from '@/lib/db'
 import { redirect } from 'next/navigation'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ChatIndexPage() {
   await initDb()
   const first = await sqlOne<{ id: number }>(`SELECT id FROM workers WHERE status = 'active' ORDER BY name LIMIT 1`)
