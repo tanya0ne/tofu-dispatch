@@ -10,7 +10,7 @@ const TOFU_LOGO = (
 )
 
 const nav = [
-  { href: '/',         label: 'Dashboard',  icon: IconDashboard },
+  { href: '/dashboard', label: 'Dashboard',  icon: IconDashboard },
   { href: '/workers',  label: 'Crew',       icon: IconWorkers },
   { href: '/jobs',     label: 'Jobs',       icon: IconJobs },
   { href: '/chat',     label: 'Messages',   icon: IconChat },

@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tofu Dispatch — Smart Crew Coordination via WhatsApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --white: #ffffff;
+            --bg: #ffffff;
+            --bg-alt: #f6f5f3;
+            --bg-warm: #f2ede6;
+            --bg-subtle: #faf9f7;
+            --ink: #1a1a18;
+            --ink-secondary: #555550;
+            --ink-tertiary: #999990;
+            --border: #dedad4;
+            --border-light: #eeece8;
+            --primary: #1a1a18;
+            --primary-hover: #2e2e2a;
+            --accent-bg: #f2ede6;
+            --accent-mid: #e8e0d4;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --radius-2xl: 32px;
+            --shadow-xs: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.05);
+            --shadow-lg: 0 8px 32px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ───── NAV ───── */
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            background: rgba(255,255,255,0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-light);
+            transition: box-shadow 0.3s, background 0.3s;
+        }
+
+        nav.scrolled {
+            background: rgba(255,255,255,0.96);
+            box-shadow: 0 1px 12px rgba(0,0,0,0.06);
+        }
+
+        nav .nav-inner {
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 0 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+
+        .logo {
+            font-family: 'Figtree', sans-serif;
+            font-weight: 700;
+            font-size: 1.125rem;
+            color: var(--ink);
+            text-decoration: none;
+            letter-spacing: -0.025em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .logo-sep {
+            color: var(--border);
+            font-weight: 300;
+            font-size: 1.1rem;
+            margin: 0 2px;
+            line-height: 1;
+        }
+
+        .logo-sub {
+            font-family: 'Figtree', sans-serif;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--ink-secondary);
+            letter-spacing: 0;
+        }
+
+        .nav-center {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            list-style: none;
+        }
+
+        .nav-center a {
+            color: var(--ink-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+            transition: color 0.15s, background 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .nav-center a:hover {
+            color: var(--ink);
+            background: var(--bg-alt);
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-login {
+            color: var(--ink-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            transition: color 0.15s, background 0.15s;
+        }
+
+        .nav-login:hover {
+            color: var(--ink);
+            background: var(--bg-alt);
+        }
+
+        .nav-cta {
+            background: var(--primary);
+            color: #fff !important;
+            padding: 8px 18px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-decoration: none;
+            transition: background 0.2s, box-shadow 0.2s;
+            white-space: nowrap;
+        }
+
+        .nav-cta:hover {
+            background: var(--primary-hover);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        /* ───── CONTAINER ───── */
+        .container {
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 0 28px;
+        }
+
+        /* ───── SECTIONS ───── */
+        section { padding: 96px 0; }
+        section.alt { background: var(--bg-alt); }
+        section.subtle { background: var(--bg-subtle); }
+
+        .section-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'Figtree', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--primary);
+            margin-bottom: 14px;
+        }
+
+        .section-eyebrow-dot {
+            width: 5px;
+            height: 5px;
+            background: var(--primary);
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .section-title {
+            font-family: 'Figtree', sans-serif;
+            font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.15;
+            margin-bottom: 14px;
+            color: var(--ink);
+        }
+
+        .section-subtitle {
+            font-size: 1rem;
+            color: var(--ink-secondary);
+            line-height: 1.7;
+            max-width: 540px;
+        }
+
+        /* ───── HERO ───── */
+        .hero {
+            padding: 140px 0 0;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .hero-inner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hero-social-proof {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--ink-secondary);
+            background: var(--white);
+            border: 1px solid var(--border);
+            padding: 6px 14px 6px 10px;
+            border-radius: 100px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-xs);
+        }
+
+        .hero-social-proof .avatars {
+            display: flex;
+        }
+
+        .hero-social-proof .av {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            margin-left: -6px;
+            background: var(--accent-mid);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--primary-hover);
+        }
+
+        .hero-social-proof .av:first-child { margin-left: 0; }
+        .hero-social-proof .av.av1 { background: #e8e4de; color: #3a3a34; }
+        .hero-social-proof .av.av2 { background: #dedad4; color: #3a3a34; }
+        .hero-social-proof .av.av3 { background: #d4cfc8; color: #3a3a34; }
+
+        .hero h1 {
+            font-family: 'Figtree', sans-serif;
+            font-weight: 800;
+            font-size: clamp(2.5rem, 5.5vw, 4rem);
+            line-height: 1.08;
+            letter-spacing: -0.04em;
+            margin-bottom: 22px;
+            max-width: 700px;
+            color: var(--ink);
+        }
+
+        .hero h1 em {
+            font-style: italic;
+            font-family: 'Lora', serif;
+            font-weight: 500;
+            color: var(--primary);
+            letter-spacing: -0.02em;
+        }
+
+        .hero-desc {
+            font-size: 1.125rem;
+            color: var(--ink-secondary);
+            max-width: 500px;
+            margin-bottom: 36px;
+            line-height: 1.7;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary);
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.9375rem;
+            padding: 12px 28px;
+            border-radius: var(--radius-sm);
+            text-decoration: none;
+            transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+            border: none;
+            cursor: pointer;
+            letter-spacing: -0.01em;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary .arrow { font-size: 1rem; transition: transform 0.2s; }
+        .btn-primary:hover .arrow { transform: translateX(3px); }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--ink);
+            font-weight: 500;
+            font-size: 0.9rem;
+            text-decoration: none;
+            padding: 12px 22px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+            background: var(--white);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--ink-secondary);
+            box-shadow: var(--shadow-xs);
+            background: var(--bg-alt);
+        }
+
+        .hero-trust {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            font-size: 0.8rem;
+            color: var(--ink-tertiary);
+            margin-bottom: 64px;
+            flex-wrap: wrap;
+        }
+
+        .hero-trust span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .hero-trust .dot-sep {
+            width: 3px;
+            height: 3px;
+            background: var(--border);
+            border-radius: 50%;
+        }
+
+        .trust-check {
+            color: var(--ink-tertiary);
+            font-size: 0.75rem;
+        }
+
+        /* ───── HERO MOCKUP ───── */
+        .hero-mockup-wrap {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .hero-mockup-shadow {
+            position: absolute;
+            bottom: 0;
+            left: 10%;
+            right: 10%;
+            height: 40px;
+            background: rgba(0,0,0,0.08);
+            filter: blur(24px);
+            border-radius: 50%;
+        }
+
+        .hero-mockup {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            box-shadow: 0 -2px 0 var(--border), var(--shadow-lg);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .mockup-bar {
+            background: var(--bg-alt);
+            border-bottom: 1px solid var(--border-light);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .mockup-dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .mockup-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .mockup-dot.red { background: #ff5f57; }
+        .mockup-dot.yellow { background: #ffbd2e; }
+        .mockup-dot.green { background: #28c840; }
+
+        .mockup-url {
+            flex: 1;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.75rem;
+            color: var(--ink-tertiary);
+            font-family: 'Inter', monospace;
+        }
+
+        .mockup-body {
+            padding: 0;
+            min-height: 340px;
+            display: grid;
+            grid-template-columns: 220px 1fr;
+        }
+
+        .mockup-sidebar {
+            background: var(--bg-subtle);
+            border-right: 1px solid var(--border-light);
+            padding: 20px 16px;
+        }
+
+        .mockup-sidebar-title {
+            font-family: 'Figtree', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--ink-tertiary);
+            margin-bottom: 12px;
+            padding: 0 4px;
+        }
+
+        .mockup-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 8px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--ink-secondary);
+            margin-bottom: 2px;
+        }
+
+        .mockup-nav-item.active {
+            background: var(--accent-bg);
+            color: var(--primary-hover);
+        }
+
+        .mockup-nav-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            background: currentColor;
+            opacity: 0.2;
+            flex-shrink: 0;
+        }
+
+        .mockup-nav-item.active .mockup-nav-icon {
+            opacity: 0.5;
+        }
+
+        .mockup-main {
+            padding: 24px;
+        }
+
+        .mockup-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .mockup-page-title {
+            font-family: 'Figtree', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--ink);
+            letter-spacing: -0.02em;
+        }
+
+        .mockup-badge-green {
+            background: var(--accent-bg);
+            color: var(--primary-hover);
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 100px;
+        }
+
+        .mockup-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .mockup-stat {
+            background: var(--bg-alt);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+        }
+
+        .mockup-stat-val {
+            font-family: 'Figtree', sans-serif;
+            font-weight: 700;
+            font-size: 1.375rem;
+            color: var(--ink);
+            letter-spacing: -0.03em;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .mockup-stat-val.green { color: var(--ink); }
+        .mockup-stat-val.yellow { color: #d97706; }
+
+        .mockup-stat-label {
+            font-size: 0.7rem;
+            color: var(--ink-tertiary);
+        }
+
+        .mockup-list-title {
+            font-family: 'Figtree', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--ink-tertiary);
+            margin-bottom: 10px;
+        }
+
+        .mockup-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .mockup-row:last-child { border-bottom: none; }
+
+        .mockup-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--accent-mid);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--ink);
+            flex-shrink: 0;
+        }
+
+        .mockup-row-info { flex: 1; }
+
+        .mockup-row-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--ink);
+            line-height: 1.2;
+        }
+
+        .mockup-row-detail {
+            font-size: 0.7rem;
+            color: var(--ink-tertiary);
+        }
+
+        .mockup-status {
+            font-size: 0.68rem;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 100px;
+        }
+
+        .mockup-status.confirmed { background: #e8e4de; color: #2a2a26; }
+        .mockup-status.onway { background: #fef3c7; color: #78350f; }
+        .mockup-status.done { background: #dedad4; color: #2a2a26; }
+        .mockup-status.pending { background: var(--border-light); color: var(--ink-tertiary); }
+
+        /* ───── AHA ───── */
+        .aha-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 40px;
+        }
+
+        .aha-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 36px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .aha-card:hover {
+            border-color: var(--border);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .aha-step {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--primary);
+            margin-bottom: 14px;
+        }
+
+        .aha-step-num {
+            width: 18px;
+            height: 18px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 0.65rem;
+            font-weight: 800;
+        }
+
+        .aha-card h3 {
+            font-family: 'Figtree', sans-serif;
+            font-size: 1.125rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+            color: var(--ink);
+        }
+
+        .aha-card p {
+            color: var(--ink-secondary);
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+
+        /* ───── BENEFITS ───── */
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-top: 48px;
+        }
+
+        .benefit-card {
+            padding: 28px;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+            background: var(--white);
+        }
+
+        .benefit-card:hover {
+            border-color: var(--border);
+            box-shadow: var(--shadow-sm);
+            transform: translateY(-2px);
+        }
+
+        .benefit-icon-wrap {
+            width: 40px;
+            height: 40px;
+            background: var(--accent-bg);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            margin-bottom: 18px;
+        }
+
+        .benefit-card h3 {
+            font-family: 'Figtree', sans-serif;
+            font-size: 0.9375rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.015em;
+            color: var(--ink);
+        }
+
+        .benefit-card p {
+            color: var(--ink-secondary);
+            font-size: 0.84375rem;
+            line-height: 1.7;
+        }
+
+        /* ───── PAIN POINTS ───── */
+        .pain-list {
+            list-style: none;
+            max-width: 640px;
+            margin-top: 40px;
+        }
+
+        .pain-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-light);
+            font-size: 0.9375rem;
+            color: var(--ink);
+            line-height: 1.6;
+        }
+
+        .pain-list li:last-child { border-bottom: none; }
+        .pain-list li:first-child { border-top: 1px solid var(--border-light); }
+
+        .pain-arrow {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ───── HOW IT WORKS ───── */
+        .steps-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+
+        .step-card { position: relative; }
+
+        .step-num {
+            font-family: 'Figtree', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--border);
+            line-height: 1;
+            margin-bottom: 16px;
+            letter-spacing: -0.05em;
+        }
+
+        .step-card h3 {
+            font-family: 'Figtree', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.015em;
+        }
+
+        .step-card p {
+            color: var(--ink-secondary);
+            font-size: 0.875rem;
+            line-height: 1.7;
+        }
+
+        .how-tagline {
+            font-family: 'Lora', serif;
+            font-style: italic;
+            font-size: 1.0625rem;
+            color: var(--ink-secondary);
+            margin-bottom: 52px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .feature-item {
+            padding: 24px 28px;
+            border-left: 2px solid var(--primary);
+            background: var(--bg-alt);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            transition: border-left-color 0.2s, background 0.2s;
+        }
+
+        .feature-item:hover {
+            background: var(--accent-bg);
+        }
+
+        .feature-item h4 {
+            font-family: 'Figtree', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            letter-spacing: -0.01em;
+        }
+
+        .feature-item p {
+            color: var(--ink-secondary);
+            font-size: 0.8375rem;
+            line-height: 1.7;
+        }
+
+        /* ───── OUTCOME (DARK) ───── */
+        .outcome {
+            background: var(--ink);
+            color: #fff;
+            text-align: center;
+        }
+
+        .outcome .section-eyebrow { color: rgba(255,255,255,0.5); }
+        .outcome .section-eyebrow-dot { background: rgba(255,255,255,0.4); }
+        .outcome .section-title { color: #fff; }
+
+        .outcome-quotes {
+            list-style: none;
+            max-width: 520px;
+            margin: 0 auto 52px;
+        }
+
+        .outcome-quotes li {
+            padding: 10px 0;
+            font-family: 'Lora', serif;
+            font-style: italic;
+            font-size: 1.0625rem;
+            color: rgba(255,255,255,0.65);
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+
+        .outcome-quotes li:last-child { border-bottom: none; }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            max-width: 680px;
+            margin: 0 auto 48px;
+        }
+
+        .metric {
+            padding: 28px 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius-md);
+            background: rgba(255,255,255,0.04);
+            transition: background 0.2s;
+        }
+
+        .metric:hover { background: rgba(255,255,255,0.07); }
+
+        .metric-value {
+            font-family: 'Figtree', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 6px;
+            letter-spacing: -0.04em;
+        }
+
+        .metric-label {
+            font-size: 0.78rem;
+            color: rgba(255,255,255,0.45);
+            line-height: 1.5;
+        }
+
+        .outcome .btn-primary {
+            background: var(--primary);
+            font-size: 1rem;
+            padding: 14px 32px;
+        }
+
+        .outcome .btn-primary:hover { background: var(--primary-hover); }
+
+        /* ───── FAQ ───── */
+        .doubt-list { max-width: 680px; }
+
+        .doubt { border-bottom: 1px solid var(--border-light); }
+        .doubt:first-child { border-top: 1px solid var(--border-light); }
+
+        .doubt-q {
+            padding: 20px 0;
+            font-weight: 600;
+            font-size: 0.9375rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            gap: 20px;
+            color: var(--ink);
+            transition: color 0.15s;
+        }
+
+        .doubt-q:hover { color: var(--primary-hover); }
+
+        .doubt-toggle {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 1.5px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 1rem;
+            line-height: 1;
+            color: var(--ink-tertiary);
+            transition: transform 0.3s, border-color 0.3s, color 0.3s;
+        }
+
+        .doubt.open .doubt-toggle {
+            transform: rotate(45deg);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .doubt-a {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        .doubt.open .doubt-a { max-height: 260px; }
+
+        .doubt-a-inner {
+            padding: 0 0 24px;
+            color: var(--ink-secondary);
+            font-size: 0.9rem;
+            line-height: 1.75;
+            max-width: 580px;
+        }
+
+        /* ───── COMPARE ───── */
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-top: 40px;
+        }
+
+        .compare-card {
+            padding: 28px;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            background: var(--white);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .compare-card:hover {
+            border-color: var(--border);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .compare-vs {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--ink-tertiary);
+            margin-bottom: 10px;
+        }
+
+        .compare-card h3 {
+            font-family: 'Figtree', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.015em;
+            color: var(--ink);
+        }
+
+        .compare-card p {
+            color: var(--ink-secondary);
+            font-size: 0.875rem;
+            line-height: 1.7;
+        }
+
+        /* ───── TESTIMONIALS ───── */
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-top: 48px;
+        }
+
+        .testimonial-card {
+            background: var(--white);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .testimonial-card:hover {
+            border-color: var(--border);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .testimonial-stars {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 14px;
+        }
+
+        .star { color: #f59e0b; font-size: 0.875rem; }
+
+        .testimonial-text {
+            font-size: 0.9rem;
+            color: var(--ink);
+            line-height: 1.7;
+            margin-bottom: 20px;
+            font-style: italic;
+            font-family: 'Lora', serif;
+        }
+
+        .testimonial-author {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .testimonial-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--accent-mid);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: var(--ink);
+            flex-shrink: 0;
+        }
+
+        .testimonial-name {
+            font-size: 0.825rem;
+            font-weight: 700;
+            color: var(--ink);
+            line-height: 1.3;
+        }
+
+        .testimonial-role {
+            font-size: 0.75rem;
+            color: var(--ink-tertiary);
+        }
+
+        /* ───── FINAL CTA ───── */
+        .final-cta {
+            text-align: center;
+            padding: 120px 0;
+        }
+
+        .final-cta .section-title {
+            font-size: clamp(2rem, 4vw, 3rem);
+            margin-bottom: 14px;
+        }
+
+        .final-cta-sub {
+            color: var(--ink-secondary);
+            font-size: 1rem;
+            margin-bottom: 36px;
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+        }
+
+        .final-cta-trust {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: var(--ink-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .final-cta-trust span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* ───── FOOTER ───── */
+        footer {
+            background: var(--bg-alt);
+            border-top: 1px solid var(--border-light);
+        }
+
+        .footer-inner {
+            padding: 48px 0 32px;
+        }
+
+        .footer-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+            gap: 32px;
+        }
+
+        .footer-brand .logo { margin-bottom: 10px; }
+
+        .footer-tagline {
+            font-size: 0.82rem;
+            color: var(--ink-tertiary);
+            max-width: 240px;
+            line-height: 1.6;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 48px;
+        }
+
+        .footer-col h4 {
+            font-family: 'Figtree', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--ink-tertiary);
+            margin-bottom: 14px;
+        }
+
+        .footer-col ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .footer-col a {
+            font-size: 0.875rem;
+            color: var(--ink-secondary);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+
+        .footer-col a:hover { color: var(--ink); }
+
+        .footer-bottom {
+            border-top: 1px solid var(--border-light);
+            padding-top: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--ink-tertiary);
+        }
+
+        /* ───── ANIMATIONS ───── */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(16px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ───── RESPONSIVE ───── */
+        @media (max-width: 960px) {
+            .benefits-grid,
+            .steps-grid,
+            .compare-grid,
+            .testimonials-grid { grid-template-columns: 1fr 1fr; }
+            .mockup-body { grid-template-columns: 1fr; }
+            .mockup-sidebar { display: none; }
+        }
+
+        @media (max-width: 680px) {
+            section { padding: 72px 0; }
+            .container { padding: 0 20px; }
+            .hero { padding: 110px 0 0; }
+            .aha-grid,
+            .benefits-grid,
+            .steps-grid,
+            .features-grid,
+            .metrics-grid,
+            .compare-grid,
+            .testimonials-grid { grid-template-columns: 1fr; }
+            .nav-center { display: none; }
+            .nav-login { display: none; }
+            .footer-top { flex-direction: column; }
+            .footer-links { gap: 32px; flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav id="nav">
+    <div class="nav-inner">
+        <a href="#" class="logo">
+            <svg width="56" height="13" viewBox="0 0 85 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24.041 20H18.3262V9.75488L8.08105 20H0L14.2861 5.71387H4.04102V0H24.041V20ZM50.0166 2.38379C51.5878 2.38386 52.974 2.71928 54.1738 3.39062C55.3736 4.04775 56.3173 4.96249 57.0029 6.13379C57.6884 7.29077 58.0312 8.62665 58.0312 10.1406C58.0312 11.6403 57.6884 12.9762 57.0029 14.1475C56.3316 15.3045 55.3951 16.2192 54.1953 16.8906C52.9954 17.5477 51.6165 17.8759 50.0596 17.876C48.4883 17.876 47.095 17.5476 45.8809 16.8906C44.681 16.2193 43.7384 15.3044 43.0527 14.1475C42.3671 12.9761 42.0244 11.6405 42.0244 10.1406C42.0244 8.62641 42.3671 7.29089 43.0527 6.13379C43.7384 4.9625 44.681 4.04773 45.8809 3.39062C47.0807 2.71935 48.4597 2.38382 50.0166 2.38379ZM75.6953 11.8115C75.6954 12.3113 75.7953 12.7397 75.9951 13.0967C76.1951 13.4537 76.474 13.7255 76.8311 13.9111C77.2023 14.0967 77.6452 14.1894 78.1592 14.1895C78.6733 14.1894 79.117 14.0968 79.4883 13.9111C79.8594 13.7254 80.1386 13.4536 80.3242 13.0967C80.524 12.7397 80.624 12.3111 80.624 11.8115V2.61816H84.5879V11.8115C84.5878 13.0685 84.3306 14.1542 83.8164 15.0684C83.3022 15.9682 82.5591 16.6618 81.5879 17.1475C80.6309 17.633 79.473 17.8759 78.1162 17.876C76.7883 17.8759 75.6453 17.6328 74.6885 17.1475C73.7314 16.6618 72.9948 15.9682 72.4805 15.0684C71.9806 14.1542 71.7315 13.0684 71.7314 11.8115V2.61816H75.6953V11.8115ZM41.1172 6.26172H36.8965V17.6182H32.9316V6.26172H28.6895V2.61816H41.1172V6.26172ZM70.1143 6.26172H63.8145V8.44727H68.7432V12.0898H63.8145V17.6182H59.8496V2.61816H70.1143V6.26172ZM50.0166 6.02637C49.2599 6.0264 48.5812 6.20473 47.9814 6.56152C47.3958 6.90435 46.9307 7.39104 46.5879 8.01953C46.2595 8.63371 46.0957 9.34081 46.0957 10.1406C46.0957 10.9404 46.2667 11.6475 46.6094 12.2617C46.9522 12.8759 47.4173 13.3617 48.0029 13.7188C48.6028 14.0614 49.2884 14.2334 50.0596 14.2334C50.8308 14.2333 51.5101 14.0615 52.0957 13.7188C52.6811 13.3617 53.1384 12.8757 53.4668 12.2617C53.7952 11.6476 53.9599 10.9404 53.96 10.1406C53.96 9.34086 53.788 8.63369 53.4453 8.01953C53.1168 7.3911 52.6525 6.90437 52.0527 6.56152C51.4672 6.20447 50.7878 6.02644 50.0166 6.02637Z" fill="#1F2226"/></svg>
+            <span class="logo-sep">|</span>
+            <span class="logo-sub">Dispatch</span>
+        </a>
+        <ul class="nav-center">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#how">How it works</a></li>
+            <li><a href="#faq">FAQ</a></li>
+        </ul>
+        <div class="nav-right">
+            <a href="#" class="nav-login">Log in</a>
+            <a href="/dashboard" class="nav-cta">Try for free</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-inner">
+
+            <!-- social proof badge -->
+            <div class="hero-social-proof fade-in">
+                <div class="avatars">
+                    <div class="av av1">MR</div>
+                    <div class="av av2">JL</div>
+                    <div class="av av3">TK</div>
+                </div>
+                &nbsp;Loved by 2,400+ field service owners
+                <span style="color:var(--ink);margin-left:2px">&#10003;</span>
+            </div>
+
+            <h1 class="fade-in" style="transition-delay:0.05s">
+                Stop dispatching.<br>Start <em>growing.</em>
+            </h1>
+
+            <p class="hero-desc fade-in" style="transition-delay:0.1s">
+                Your schedule, your rules, your voice — delivered to every worker through WhatsApp automatically. Workers see messages from you, not from a bot.
+            </p>
+
+            <div class="hero-actions fade-in" style="transition-delay:0.15s">
+                <a href="/dashboard" class="btn-primary">Try for free <span class="arrow">&rarr;</span></a>
+                <a href="#how" class="btn-secondary">See how it works</a>
+            </div>
+
+            <div class="hero-trust fade-in" style="transition-delay:0.2s">
+                <span><span class="trust-check">&#10003;</span> No credit card</span>
+                <div class="dot-sep"></div>
+                <span><span class="trust-check">&#10003;</span> Free 14-day trial</span>
+                <div class="dot-sep"></div>
+                <span><span class="trust-check">&#10003;</span> Works on WhatsApp</span>
+                <div class="dot-sep"></div>
+                <span>&#9733;&#9733;&#9733;&#9733;&#9733; &nbsp;4.9/5 from 380 reviews</span>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- product mockup -->
+    <div class="container">
+        <div class="hero-mockup-wrap fade-in" style="transition-delay:0.25s">
+            <div class="hero-mockup">
+                <div class="mockup-bar">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot red"></div>
+                        <div class="mockup-dot yellow"></div>
+                        <div class="mockup-dot green"></div>
+                    </div>
+                    <div class="mockup-url">app.tofu.com/dashboard</div>
+                </div>
+                <div class="mockup-body">
+                    <div class="mockup-sidebar">
+                        <div class="mockup-sidebar-title">Workspace</div>
+                        <div class="mockup-nav-item active">
+                            <div class="mockup-nav-icon"></div> Dashboard
+                        </div>
+                        <div class="mockup-nav-item">
+                            <div class="mockup-nav-icon"></div> Schedule
+                        </div>
+                        <div class="mockup-nav-item">
+                            <div class="mockup-nav-icon"></div> Crew
+                        </div>
+                        <div class="mockup-nav-item">
+                            <div class="mockup-nav-icon"></div> Messages
+                        </div>
+                        <div class="mockup-nav-item">
+                            <div class="mockup-nav-icon"></div> Reports
+                        </div>
+                    </div>
+                    <div class="mockup-main">
+                        <div class="mockup-topbar">
+                            <div class="mockup-page-title">Today's Crew Status</div>
+                            <div class="mockup-badge-green">8 active jobs</div>
+                        </div>
+                        <div class="mockup-stats">
+                            <div class="mockup-stat">
+                                <div class="mockup-stat-val green">6</div>
+                                <div class="mockup-stat-label">Confirmed</div>
+                            </div>
+                            <div class="mockup-stat">
+                                <div class="mockup-stat-val yellow">1</div>
+                                <div class="mockup-stat-label">On the way</div>
+                            </div>
+                            <div class="mockup-stat">
+                                <div class="mockup-stat-val">1</div>
+                                <div class="mockup-stat-label">Pending reply</div>
+                            </div>
+                        </div>
+                        <div class="mockup-list-title">Crew today</div>
+                        <div class="mockup-row">
+                            <div class="mockup-avatar">MR</div>
+                            <div class="mockup-row-info">
+                                <div class="mockup-row-name">Miguel Rodriguez</div>
+                                <div class="mockup-row-detail">123 Oak St · 9:00 AM</div>
+                            </div>
+                            <div class="mockup-status confirmed">Confirmed</div>
+                        </div>
+                        <div class="mockup-row">
+                            <div class="mockup-avatar" style="background:#fef3c7;color:#92400e">JL</div>
+                            <div class="mockup-row-info">
+                                <div class="mockup-row-name">Juan López</div>
+                                <div class="mockup-row-detail">456 Pine Ave · 10:30 AM</div>
+                            </div>
+                            <div class="mockup-status onway">On the way</div>
+                        </div>
+                        <div class="mockup-row">
+                            <div class="mockup-avatar" style="background:#dedad4;color:#2a2a26">TK</div>
+                            <div class="mockup-row-info">
+                                <div class="mockup-row-name">Tomás Kladivo</div>
+                                <div class="mockup-row-detail">789 Elm Rd · 11:00 AM</div>
+                            </div>
+                            <div class="mockup-status done">Done ✓</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-mockup-shadow"></div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ── AHA MOMENT ── -->
+<section class="alt">
+    <div class="container">
+        <div class="section-eyebrow"><div class="section-eyebrow-dot"></div> Try it in 2 minutes</div>
+        <div class="section-title">See it work in real time</div>
+        <p class="section-subtitle">Connect one worker, send one message, watch it happen.</p>
+        <div class="aha-grid">
+            <div class="aha-card fade-in">
+                <div class="aha-step"><div class="aha-step-num">1</div> Step one</div>
+                <h3>Connect one worker via WhatsApp</h3>
+                <p>Tofu Dispatch sends them today's schedule as a message from you. The worker confirms with a simple reply. You see it in your dashboard within minutes.</p>
+            </div>
+            <div class="aha-card fade-in" style="transition-delay: 0.1s;">
+                <div class="aha-step"><div class="aha-step-num">2</div> Step two</div>
+                <h3>Type a message in English</h3>
+                <p>Your Spanish-speaking tech receives it in Spanish. Their reply comes back to you in English. They think they're texting you directly — because they basically are.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── BENEFITS ── -->
+<section id="features">
+    <div class="container">
+        <div class="section-eyebrow"><div class="section-eyebrow-dot"></div> What you get</div>
+        <div class="section-title">Everything you need to coordinate your crew</div>
+        <p class="section-subtitle">Nothing you don't.</p>
+        <div class="benefits-grid">
+            <div class="benefit-card fade-in">
+                <div class="benefit-icon-wrap">&#9728;&#65039;</div>
+                <h3>Your mornings back</h3>
+                <p>Reminders go out to every worker 1 hour before each visit — address, client name, job details. You open a status board, not a call list.</p>
+            </div>
+            <div class="benefit-card fade-in" style="transition-delay: 0.06s;">
+                <div class="benefit-icon-wrap">&#128205;</div>
+                <h3>Real-time visibility</h3>
+                <p>Workers reply "on my way," "on site," "done" — just like they'd text you. Statuses update in Tofu FSM automatically.</p>
+            </div>
+            <div class="benefit-card fade-in" style="transition-delay: 0.12s;">
+                <div class="benefit-icon-wrap">&#127760;</div>
+                <h3>Language barrier gone</h3>
+                <p>You write in English, your worker reads in Spanish. They reply in Spanish, you see it in English. No Google Translate.</p>
+            </div>
+            <div class="benefit-card fade-in" style="transition-delay: 0.18s;">
+                <div class="benefit-icon-wrap">&#128260;</div>
+                <h3>Changes handled, not juggled</h3>
+                <p>Worker stuck in traffic? You get a notification with options — not a problem to solve. Pick one, the worker gets notified.</p>
+            </div>
+            <div class="benefit-card fade-in" style="transition-delay: 0.24s;">
+                <div class="benefit-icon-wrap">&#9878;&#65039;</div>
+                <h3>Workload you can see</h3>
+                <p>Who's overloaded? Who has open slots? See it before you assign the next job. Imbalances get flagged automatically.</p>
+            </div>
+            <div class="benefit-card fade-in" style="transition-delay: 0.3s;">
+                <div class="benefit-icon-wrap">&#128227;</div>
+                <h3>One message, whole crew</h3>
+                <p>Type once — each worker gets a personalized message in their language. You see who responded and who didn't.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── SOUND FAMILIAR ── -->
+<section class="alt">
+    <div class="container">
+        <div class="section-eyebrow"><div class="section-eyebrow-dot"></div> Sound familiar?</div>
+        <div class="section-title">You're stuck being the dispatcher, the manager, and the babysitter</div>
+        <p class="section-subtitle">You want to grow and take more jobs — but you can't get out from under the coordination.</p>
+        <ul class="pain-list">
+            <li class="fade-in"><span class="pain-arrow">→</span> You start every morning texting 8 workers one by one to confirm they know where to go</li>
+            <li class="fade-in" style="transition-delay: 0.05s;"><span class="pain-arrow">→</span> You find out a tech didn't show up — from the angry client, not your system</li>
+            <li class="fade-in" style="transition-delay: 0.1s;"><span class="pain-arrow">→</span> You spend half your day on the phone chasing updates instead of closing new deals</li>
+            <li class="fade-in" style="transition-delay: 0.15s;"><span class="pain-arrow">→</span> You copy-paste Google Translate to talk to half your team</li>
+            <li class="fade-in" style="transition-delay: 0.2s;"><span class="pain-arrow">→</span> A worker texts "estoy enfermo" at 6 AM and your whole day falls apart</li>
+            <li class="fade-in" style="transition-delay: 0.25s;"><span class="pain-arrow">→</span> You feel like the business can't grow past where it is — because YOU are the bottleneck</li>
+        </ul>
+    </div>
+</section>
+
+<!-- ── HOW IT WORKS ── -->
+<section id="how">
+    <div class="container">
+        <div class="section-eyebrow"><div class="section-eyebrow-dot"></div> How it works</div>
+        <div class="section-title">You set the rules. Tofu Dispatch follows them.</div>
+        <p class="how-tagline">Cruise control, not autopilot.</p>
+
+        <div class="steps-grid">
+            <div class="step-card fade-in">
+                <div class="step-num">01</div>
+                <h3>Your schedule drives everything</h3>
+                <p>Tofu Dispatch reads your jobs and visits from Tofu FSM — real addresses, real client names, real times. Nothing is made up. Nothing is guessed.</p>
+            </div>
+            <div class="step-card fade-in" style="transition-delay: 0.1s;">
+                <div class="step-num">02</div>
+                <h3>Workers get messages from you</h3>
+                <p>No new apps. No bots. Workers get a WhatsApp message with their next job — in their language. Most don't even know it's automated.</p>
+            </div>
+            <div class="step-card fade-in" style="transition-delay: 0.2s;">
+                <div class="step-num">03</div>
+                <h3>You see results, not noise</h3>
+                <p>Dashboard shows who confirmed, who's late, who finished. Things that need attention are highlighted. Everything else just works.</p>
+            </div>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-item fade-in">
+                <h4>Reminders &amp; confirmations</h4>
+                <p>1 hour before each visit. No response in 30 min? Automatic follow-up, and you get notified.</p>
+            </div>
+            <div class="feature-item fade-in" style="transition-delay: 0.05s;">
+                <h4>Live status tracking</h4>
+                <p>"On my way," "arrived," "done" — syncs to Tofu FSM instantly. Live board, not yesterday's spreadsheet.</p>
+            </div>
+            <div class="feature-item fade-in" style="transition-delay: 0.1s;">
+                <h4>Instant translation</h4>
+                <p>"Estoy en tráfico, llego tarde 30 min" → "Juan — 30 min delay on 123 Main St." You reply in English. Juan gets it in Spanish.</p>
+            </div>
+            <div class="feature-item fade-in" style="transition-delay: 0.15s;">
+                <h4>Reschedules — your call</h4>
+                <p>Worker can't make it? You see the request, get suggested slots, approve with a tap. Your schedule, your decision.</p>
+            </div>
+            <div class="feature-item fade-in" style="transition-delay: 0.2s;">
+                <h4>Workload balance</h4>
+                <p>See who's maxed out before assigning. Overloaded workers get flagged so you don't burn out your best tech.</p>
+            </div>
+            <div class="feature-item fade-in" style="transition-delay: 0.25s;">
+                <h4>Crew-wide messages</h4>
+                <p>One message from you — personalized for each worker in their language. Track every response.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── TESTIMONIALS ── -->
+<section class="alt">
+    <div class="container">
+        <div class="section-eyebrow"><div class="section-eyebrow-dot"></div> Customer stories</div>
+        <div class="section-title">Field service owners love it</div>
+        <p class="section-subtitle">Real results from real crews. No cherry-picking.</p>
+        <div class="testimonials-grid">
+            <div class="testimonial-card fade-in">
+                <div class="testimonial-stars">
+                    <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+                </div>
+                <p class="testimonial-text">"I used to spend 2 hours every morning just confirming who's going where. Now I open the dashboard and it's all there. Game changer."</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-avatar">DM</div>
+                    <div>
+                        <div class="testimonial-name">David M.</div>
+                        <div class="testimonial-role">HVAC owner, Texas · 12 technicians</div>
+                    </div>
+                </div>
+            </div>
+            <div class="testimonial-card fade-in" style="transition-delay: 0.08s;">
+                <div class="testimonial-stars">
+                    <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+                </div>
+                <p class="testimonial-text">"Half my crew doesn't speak English well. They reply in Spanish, I see it in English. My workers think I learned Spanish overnight."</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-avatar" style="background:#fef3c7;color:#92400e">RG</div>
+                    <div>
+                        <div class="testimonial-name">Rosa G.</div>
+                        <div class="testimonial-role">Landscaping, Florida · 9 workers</div>
+                    </div>
+                </div>
+            </div>
+            <div class="testimonial-card fade-in" style="transition-delay: 0.16s;">
+                <div class="testimonial-stars">
+                    <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+                </div>
+                <p class="testimonial-text">"Went from 8 crews to 15 without hiring a dispatcher. Tofu Dispatch just handles it. I finally feel like a business owner, not a phone monkey."</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-avatar" style="background:#dedad4;color:#2a2a26">JK</div>
+                    <div>
+                        <div class="testimonial-name">James K.</div>
+                        <div class="testimonial-role">Plumbing, Ohio · 15 technicians</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── OUTCOME ── -->
+<section class="outcome">
+    <div class="container">
+        <div class="section-eyebrow"><div class="section-eyebrow-dot"></div> Where this takes you</div>
+        <div class="section-title">From bottleneck to business owner</div>
+        <ul class="outcome-quotes">
+            <li class="fade-in">"Feel in control of your day — not constantly reacting to surprises"</li>
+            <li class="fade-in" style="transition-delay: 0.06s;">"Stop being the bottleneck and start being the owner again"</li>
+            <li class="fade-in" style="transition-delay: 0.12s;">"Say yes to more jobs — your coordination finally scales"</li>
+        </ul>
+        <div class="metrics-grid">
+            <div class="metric fade-in">
+                <div class="metric-value">8→15</div>
+                <div class="metric-label">workers without a dispatcher</div>
+            </div>
+            <div class="metric fade-in" style="transition-delay: 0.08s;">
+                <div class="metric-value">+30%</div>
+                <div class="metric-label">more jobs, same team</div>
+            </div>
+            <div class="metric fade-in" style="transition-delay: 0.16s;">
+                <div class="metric-value">3h+</div>
+                <div class="metric-label">reclaimed every day</div>
+            </div>
+        </div>
+        <a href="/dashboard" class="btn-primary">Try for free <span class="arrow">&rarr;</span></a>
+    </div>
+</section>
+
+<!-- ── FAQ ── -->
+<section id="faq">
+    <div class="container">
+        <div class="section-eyebrow"><div class="section-eyebrow-dot"></div> FAQ</div>
+        <div class="section-title">Have doubts?</div>
+        <div class="doubt-list" style="margin-top:36px">
+            <div class="doubt">
+                <div class="doubt-q">
+                    "My workers aren't tech-savvy — they won't use another app."
+                    <span class="doubt-toggle">+</span>
+                </div>
+                <div class="doubt-a"><div class="doubt-a-inner">There is no other app. They get a WhatsApp message — the same app they already use every day. They reply like they'd reply to you. If they can text, they can use Tofu Dispatch. We've seen response rates above 80% from crews who barely use email.</div></div>
+            </div>
+            <div class="doubt">
+                <div class="doubt-q">
+                    "I don't want a bot talking to my workers."
+                    <span class="doubt-toggle">+</span>
+                </div>
+                <div class="doubt-a"><div class="doubt-a-inner">Neither do we. Workers see messages from your business — not from "Tofu Bot." The tone matches how you'd write. And Tofu Dispatch never makes decisions on its own: reschedules, reassignments, anything important — it asks you first. You approve, then it sends.</div></div>
+            </div>
+            <div class="doubt">
+                <div class="doubt-q">
+                    "What if it sends wrong information?"
+                    <span class="doubt-toggle">+</span>
+                </div>
+                <div class="doubt-a"><div class="doubt-a-inner">Every message is built from your actual Tofu FSM schedule — real job data, real addresses, real times. No AI hallucinations. No guessing. If your schedule is accurate, the messages are accurate. You can review message templates before anything goes out.</div></div>
+            </div>
+            <div class="doubt">
+                <div class="doubt-q">
+                    "I need to stay in control."
+                    <span class="doubt-toggle">+</span>
+                </div>
+                <div class="doubt-a"><div class="doubt-a-inner">That's the whole point. Tofu Dispatch automates the delivery — not the decisions. Reminders and status collection run automatically. But changes, reschedules, and anything that requires judgment always goes through you. Cruise control, not autopilot.</div></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── COMPARE ── -->
+<section class="alt">
+    <div class="container">
+        <div class="section-eyebrow"><div class="section-eyebrow-dot"></div> Why switch</div>
+        <div class="section-title">Why not just keep doing it yourself?</div>
+        <div class="compare-grid">
+            <div class="compare-card fade-in">
+                <div class="compare-vs">vs. Texting workers yourself</div>
+                <h3>3–4 hours a day on coordination</h3>
+                <p>Every hour you spend dispatching is an hour you're not selling, estimating, or growing. Tofu Dispatch handles the back-and-forth so you handle the business.</p>
+            </div>
+            <div class="compare-card fade-in" style="transition-delay: 0.08s;">
+                <div class="compare-vs">vs. Hiring a dispatcher</div>
+                <h3>$35K–$50K / year salary</h3>
+                <p>A human dispatcher works 8 hours, calls in sick, and quits. Tofu Dispatch works around the clock, speaks every language your crew speaks, and costs a fraction.</p>
+            </div>
+            <div class="compare-card fade-in" style="transition-delay: 0.16s;">
+                <div class="compare-vs">vs. Group WhatsApp chat</div>
+                <h3>Messages get buried</h3>
+                <p>Workers miss updates, you can't track who confirmed what. Tofu Dispatch sends targeted messages and tracks every response — per worker, per job.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── FINAL CTA ── -->
+<section class="final-cta" id="cta">
+    <div class="container">
+        <div class="section-eyebrow" style="justify-content:center"><div class="section-eyebrow-dot"></div> Get started</div>
+        <div class="section-title">Ready to stop being the bottleneck?</div>
+        <p class="final-cta-sub">Connect your first worker in 2 minutes. See who confirms before you finish your coffee.</p>
+        <a href="/dashboard" class="btn-primary" style="font-size:1rem;padding:14px 36px">Try for free <span class="arrow">&rarr;</span></a>
+        <div class="final-cta-trust">
+            <span><span class="trust-check">&#10003;</span> No credit card required</span>
+            <span><span class="trust-check">&#10003;</span> 14-day free trial</span>
+            <span><span class="trust-check">&#10003;</span> Cancel anytime</span>
+            <span>&#9733;&#9733;&#9733;&#9733;&#9733; &nbsp;4.9/5 from 380 reviews</span>
+        </div>
+    </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+    <div class="container footer-inner">
+        <div class="footer-top">
+            <div class="footer-brand">
+                <a href="#" class="logo" style="margin-bottom:12px;display:inline-flex">
+                    <svg width="56" height="13" viewBox="0 0 85 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24.041 20H18.3262V9.75488L8.08105 20H0L14.2861 5.71387H4.04102V0H24.041V20ZM50.0166 2.38379C51.5878 2.38386 52.974 2.71928 54.1738 3.39062C55.3736 4.04775 56.3173 4.96249 57.0029 6.13379C57.6884 7.29077 58.0312 8.62665 58.0312 10.1406C58.0312 11.6403 57.6884 12.9762 57.0029 14.1475C56.3316 15.3045 55.3951 16.2192 54.1953 16.8906C52.9954 17.5477 51.6165 17.8759 50.0596 17.876C48.4883 17.876 47.095 17.5476 45.8809 16.8906C44.681 16.2193 43.7384 15.3044 43.0527 14.1475C42.3671 12.9761 42.0244 11.6405 42.0244 10.1406C42.0244 8.62641 42.3671 7.29089 43.0527 6.13379C43.7384 4.9625 44.681 4.04773 45.8809 3.39062C47.0807 2.71935 48.4597 2.38382 50.0166 2.38379ZM75.6953 11.8115C75.6954 12.3113 75.7953 12.7397 75.9951 13.0967C76.1951 13.4537 76.474 13.7255 76.8311 13.9111C77.2023 14.0967 77.6452 14.1894 78.1592 14.1895C78.6733 14.1894 79.117 14.0968 79.4883 13.9111C79.8594 13.7254 80.1386 13.4536 80.3242 13.0967C80.524 12.7397 80.624 12.3111 80.624 11.8115V2.61816H84.5879V11.8115C84.5878 13.0685 84.3306 14.1542 83.8164 15.0684C83.3022 15.9682 82.5591 16.6618 81.5879 17.1475C80.6309 17.633 79.473 17.8759 78.1162 17.876C76.7883 17.8759 75.6453 17.6328 74.6885 17.1475C73.7314 16.6618 72.9948 15.9682 72.4805 15.0684C71.9806 14.1542 71.7315 13.0684 71.7314 11.8115V2.61816H75.6953V11.8115ZM41.1172 6.26172H36.8965V17.6182H32.9316V6.26172H28.6895V2.61816H41.1172V6.26172ZM70.1143 6.26172H63.8145V8.44727H68.7432V12.0898H63.8145V17.6182H59.8496V2.61816H70.1143V6.26172ZM50.0166 6.02637C49.2599 6.0264 48.5812 6.20473 47.9814 6.56152C47.3958 6.90435 46.9307 7.39104 46.5879 8.01953C46.2595 8.63371 46.0957 9.34081 46.0957 10.1406C46.0957 10.9404 46.2667 11.6475 46.6094 12.2617C46.9522 12.8759 47.4173 13.3617 48.0029 13.7188C48.6028 14.0614 49.2884 14.2334 50.0596 14.2334C50.8308 14.2333 51.5101 14.0615 52.0957 13.7188C52.6811 13.3617 53.1384 12.8757 53.4668 12.2617C53.7952 11.6476 53.9599 10.9404 53.96 10.1406C53.96 9.34086 53.788 8.63369 53.4453 8.01953C53.1168 7.3911 52.6525 6.90437 52.0527 6.56152C51.4672 6.20447 50.7878 6.02644 50.0166 6.02637Z" fill="#1F2226"/></svg>
+                    <span class="logo-sep">|</span>
+                    <span class="logo-sub">Dispatch</span>
+                </a>
+                <p class="footer-tagline">Smart crew coordination via WhatsApp — built for field service teams who are too busy to dispatch.</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-col">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#how">How it works</a></li>
+                        <li><a href="#">Changelog</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="#">About</a></li>
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="#">Privacy</a></li>
+                        <li><a href="#">Terms</a></li>
+                        <li><a href="#">Security</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>&copy; 2026 Tofu Dispatch. All rights reserved.</span>
+            <span>Built for field service teams who are too busy to dispatch.</span>
+        </div>
+    </div>
+</footer>
+
+<script>
+    // Scroll-triggered fade-in
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) entry.target.classList.add('visible');
+        });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // FAQ accordion
+    document.querySelectorAll('.doubt-q').forEach(q => {
+        q.addEventListener('click', () => {
+            const doubt = q.parentElement;
+            const wasOpen = doubt.classList.contains('open');
+            document.querySelectorAll('.doubt').forEach(d => d.classList.remove('open'));
+            if (!wasOpen) doubt.classList.add('open');
+        });
+    });
+
+    // Nav shadow on scroll
+    window.addEventListener('scroll', () => {
+        document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 40);
+    });
+</script>
+
+</body>
+</html>
