@@ -83,17 +83,26 @@ async function _doInit() {
 }
 
 async function seedIfEmpty() {
-  const row = await sqlOne<{ n: string }>('SELECT COUNT(*)::int as n FROM workers')
-  if (row && Number(row.n) > 0) return
+  const today = new Date().toISOString().slice(0, 10)
 
-  const today = new Date()
+  // If we already have jobs for today — skip
+  const existing = await sqlOne<{ n: string }>(
+    `SELECT COUNT(*)::int as n FROM jobs WHERE scheduled_at LIKE $1`,
+    [`${today}%`]
+  )
+  if (existing && Number(existing.n) > 0) return
+
+  // Clear stale data from previous days and re-seed with today's dates
+  await pool.query('TRUNCATE workers, jobs, messages, escalations RESTART IDENTITY CASCADE')
+
+  const now = new Date()
   const d = (h: number, m = 0) => {
-    const dt = new Date(today)
+    const dt = new Date(now)
     dt.setHours(h, m, 0, 0)
     return dt.toISOString()
   }
   const ago = (minutes: number) => {
-    const dt = new Date(today)
+    const dt = new Date(now)
     dt.setMinutes(dt.getMinutes() - minutes)
     return dt.toISOString()
   }
