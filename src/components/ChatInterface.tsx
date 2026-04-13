@@ -93,18 +93,24 @@ export default function ChatInterface({ worker, initialMessages, todaysJobs }: {
   }, [messages])
 
   async function sendMessage(text: string) {
-    if (!text.trim() || sending) return
+    const trimmed = text.trim()
+    if (!trimmed || sending) return
     setSending(true)
     setInput('')
 
-    const res = await fetch('/api/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ worker_id: worker.id, content: text, direction: 'outbound' }),
-    })
-    const msg = await res.json()
-    setMessages(prev => [...prev, msg])
-    setSending(false)
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ worker_id: worker.id, content: trimmed, direction: 'outbound' }),
+      })
+      const msg = await res.json()
+      if (msg && msg.id) {
+        setMessages(prev => [...prev, msg])
+      }
+    } finally {
+      setSending(false)
+    }
   }
 
   async function simulateResponse() {
@@ -262,8 +268,58 @@ export default function ChatInterface({ worker, initialMessages, todaysJobs }: {
               <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a18', marginBottom: 2 }}>{j.client_name}</div>
               <div style={{ fontSize: 11.5, color: '#999990' }}>{j.job_type}</div>
               <div style={{ fontSize: 11.5, color: '#555550', marginTop: 3 }}>📍 {j.address.split(',')[0]}</div>
+              {j.status === 'delayed' && (
+                <button
+                  onClick={() => alert(`Client ${j.client_name} notified about the delay`)}
+                  style={{
+                    marginTop: 6, width: '100%', padding: '6px 0', borderRadius: 6,
+                    fontSize: 11, fontWeight: 600, color: '#78350f',
+                    background: '#fef3c7', border: '1px solid #fde68a',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Notify client about delay
+                </button>
+              )}
             </div>
           ))}
+
+          {/* Escalation: no response */}
+          {todaysJobs.some(j => j.status === 'scheduled') &&
+           messages.length > 0 &&
+           messages[messages.length - 1]?.direction === 'outbound' &&
+           messages[messages.length - 1]?.id !== -1 && (
+            <div style={{
+              background: '#f2ede6', border: '1px solid #dedad4',
+              borderRadius: 10, padding: '12px', marginBottom: 12,
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18', marginBottom: 6 }}>
+                No response. Consider:
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <a
+                  href={`tel:${worker.phone}`}
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                    padding: '7px 0', borderRadius: 7, fontSize: 12, fontWeight: 600,
+                    background: '#1a1a18', color: '#fff', textDecoration: 'none',
+                  }}
+                >
+                  Call
+                </a>
+                <button
+                  disabled
+                  style={{
+                    flex: 1, padding: '7px 0', borderRadius: 7, fontSize: 12, fontWeight: 600,
+                    background: '#f6f5f3', color: '#999990', border: '1px solid #dedad4',
+                    cursor: 'not-allowed',
+                  }}
+                >
+                  Reassign
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Quick templates */}
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#999990', marginTop: 16, marginBottom: 10 }}>

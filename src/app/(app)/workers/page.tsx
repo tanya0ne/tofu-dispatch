@@ -42,6 +42,7 @@ export default async function WorkersPage() {
 
   return (
     <div style={{ padding: '32px 36px', maxWidth: 1100 }}>
+      <style>{`.worker-card:hover { border-color: #dedad4 !important; }`}</style>
       <div style={{ marginBottom: 28 }}>
         <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#999990', marginBottom: 6 }}>Crew</div>
         <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.03em' }}>Your team today</h1>
@@ -57,7 +58,7 @@ export default async function WorkersPage() {
           const hasDelay = jStats.delayed > 0
 
           return (
-            <div key={w.id} style={{
+            <Link key={w.id} href={`/chat/${w.id}`} className="worker-card" style={{
               background: '#fff',
               border: '1px solid #eeece8',
               borderRadius: 14,
@@ -65,6 +66,9 @@ export default async function WorkersPage() {
               display: 'flex',
               flexDirection: 'column',
               gap: 14,
+              textDecoration: 'none',
+              color: 'inherit',
+              cursor: 'pointer',
             }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                 <div style={{
@@ -120,18 +124,18 @@ export default async function WorkersPage() {
                 </div>
               )}
 
-              <Link href={`/chat/${w.id}`} style={{
+              <span style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 padding: '9px 0', borderRadius: 8,
                 background: '#1a1a18', color: '#fff',
-                fontSize: 13, fontWeight: 600, textDecoration: 'none',
+                fontSize: 13, fontWeight: 600,
               }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
                 Message {w.name.split(' ')[0]}
-              </Link>
-            </div>
+              </span>
+            </Link>
           )
         })}
       </div>

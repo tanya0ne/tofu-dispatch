@@ -12,7 +12,14 @@ export default async function ChatPage({ params }: { params: Promise<{ workerId:
   const [worker, messages, allWorkers] = await Promise.all([
     sqlOne(`SELECT * FROM workers WHERE id = $1`, [Number(workerId)]),
     sql(`SELECT * FROM messages WHERE worker_id = $1 ORDER BY created_at ASC, id ASC`, [Number(workerId)]),
-    sql(`SELECT id, name, avatar_initials FROM workers WHERE status = 'active'`),
+    sql(`
+      SELECT w.id, w.name, w.avatar_initials, lm.direction as last_msg_direction
+      FROM workers w
+      LEFT JOIN LATERAL (
+        SELECT direction FROM messages WHERE worker_id = w.id ORDER BY id DESC LIMIT 1
+      ) lm ON true
+      WHERE w.status = 'active'
+    `),
   ])
 
   if (!worker) notFound()
@@ -49,9 +56,15 @@ export default async function ChatPage({ params }: { params: Promise<{ workerId:
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 11, fontWeight: 700, color: '#1a1a18', flexShrink: 0,
               }}>{w.avatar_initials}</div>
-              <span style={{ fontSize: 13.5, fontWeight: w.id === Number(workerId) ? 700 : 500, color: '#1a1a18' }}>
+              <span style={{ fontSize: 13.5, fontWeight: w.id === Number(workerId) ? 700 : 500, color: '#1a1a18', flex: 1 }}>
                 {w.name.split(' ')[0]}
               </span>
+              {w.last_msg_direction === 'outbound' && (
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: '#1a1a18', flexShrink: 0,
+                }} />
+              )}
             </Link>
           ))}
         </div>

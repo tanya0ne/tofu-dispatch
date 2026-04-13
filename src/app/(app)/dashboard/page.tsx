@@ -28,7 +28,7 @@ export default async function DashboardPage() {
       ORDER BY j.scheduled_at ASC
     `, [today]),
     sql(`
-      SELECT e.*, w.name as worker_name, w.avatar_initials, w.avatar_color
+      SELECT e.*, w.name as worker_name, w.avatar_initials, w.avatar_color, w.phone as worker_phone
       FROM escalations e JOIN workers w ON e.worker_id = w.id
       WHERE e.status = 'pending'
       ORDER BY e.created_at DESC
@@ -122,6 +122,11 @@ export default async function DashboardPage() {
                   <p style={{ fontSize: 13.5, color: '#555550', lineHeight: 1.5 }}>{e.description}</p>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <a href={`tel:${e.worker_phone}`} style={{
+                    padding: '7px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600,
+                    background: '#fff', color: '#1a1a18', border: '1px solid #dedad4',
+                    textDecoration: 'none', display: 'flex', alignItems: 'center',
+                  }}>Call</a>
                   <Link href={`/chat/${e.worker_id}`} style={{
                     padding: '7px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600,
                     background: '#1a1a18', color: '#fff', textDecoration: 'none',
