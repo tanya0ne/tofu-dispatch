@@ -87,8 +87,8 @@ async function seedIfEmpty() {
 
   // If we already have jobs for today — skip
   const existing = await sqlOne<{ n: string }>(
-    `SELECT COUNT(*)::int as n FROM jobs WHERE scheduled_at LIKE $1`,
-    [`${today}%`]
+    `SELECT COUNT(*)::int as n FROM jobs WHERE DATE(scheduled_at::timestamptz AT TIME ZONE 'UTC') = $1::date`,
+    [today]
   )
   if (existing && Number(existing.n) > 0) return
 
@@ -98,12 +98,12 @@ async function seedIfEmpty() {
   const now = new Date()
   const d = (h: number, m = 0) => {
     const dt = new Date(now)
-    dt.setHours(h, m, 0, 0)
+    dt.setUTCHours(h, m, 0, 0)
     return dt.toISOString()
   }
   const ago = (minutes: number) => {
     const dt = new Date(now)
-    dt.setMinutes(dt.getMinutes() - minutes)
+    dt.setUTCMinutes(dt.getUTCMinutes() - minutes)
     return dt.toISOString()
   }
 
