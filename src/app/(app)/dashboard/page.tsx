@@ -145,60 +145,54 @@ export default async function DashboardPage() {
           Today&apos;s schedule
         </div>
         <div style={{ background: '#fff', border: '1px solid #eeece8', borderRadius: 12, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #eeece8' }}>
-                {['Time', 'Worker', 'Client', 'Address', 'Type', 'Status', ''].map(h => (
-                  <th key={h} style={{
-                    padding: '11px 16px', textAlign: 'left',
-                    fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                    letterSpacing: '0.07em', color: '#999990',
-                  }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {jobs.map((j: any, i: number) => (
-                <tr key={j.id} style={{
-                  borderBottom: i < jobs.length - 1 ? '1px solid #eeece8' : 'none',
-                  background: i % 2 === 1 ? '#faf9f7' : '#fff',
-                }}>
-                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 500, color: '#555550', whiteSpace: 'nowrap' }}>
-                    {fmt(j.scheduled_at)}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{
-                        width: 28, height: 28, borderRadius: '50%',
-                        background: j.avatar_color, display: 'flex',
-                        alignItems: 'center', justifyContent: 'center',
-                        fontSize: 10, fontWeight: 700, color: '#1a1a18', flexShrink: 0,
-                      }}>{j.avatar_initials}</div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>{j.worker_name}</div>
-                        <div style={{ fontSize: 11, color: '#999990' }}>{j.language === 'es' ? '🇲🇽 ES' : '🇺🇸 EN'}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 500 }}>{j.client_name}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 12, color: '#555550', maxWidth: 180 }}>
-                    <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {j.address}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: 12, color: '#555550', whiteSpace: 'nowrap' }}>{j.job_type}</td>
-                  <td style={{ padding: '12px 16px' }}><StatusBadge status={j.status} /></td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <Link href={`/chat/${j.worker_id}`} style={{
-                      fontSize: 12, fontWeight: 500, color: '#555550',
-                      textDecoration: 'none', padding: '4px 10px',
-                      border: '1px solid #dedad4', borderRadius: 6,
-                    }}>Chat</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* Header */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '80px 170px 120px 1fr 110px 100px 60px',
+            borderBottom: '1px solid #eeece8', padding: '11px 16px',
+          }}>
+            {['Time', 'Worker', 'Client', 'Address', 'Type', 'Status', ''].map(h => (
+              <div key={h} style={{
+                fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                letterSpacing: '0.07em', color: '#999990',
+              }}>{h}</div>
+            ))}
+          </div>
+          {/* Rows */}
+          {jobs.map((j: any, i: number) => (
+            <Link key={j.id} href={`/chat/${j.worker_id}`} style={{
+              display: 'grid', gridTemplateColumns: '80px 170px 120px 1fr 110px 100px 60px',
+              padding: '12px 16px', textDecoration: 'none', color: 'inherit',
+              borderBottom: i < jobs.length - 1 ? '1px solid #eeece8' : 'none',
+              background: i % 2 === 1 ? '#faf9f7' : '#fff',
+              alignItems: 'center',
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#555550', whiteSpace: 'nowrap' }}>
+                {fmt(j.scheduled_at)}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: j.avatar_color, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, fontWeight: 700, color: '#1a1a18', flexShrink: 0,
+                }}>{j.avatar_initials}</div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>{j.worker_name}</div>
+                  <div style={{ fontSize: 11, color: '#999990' }}>{j.language === 'es' ? '🇲🇽 ES' : '🇺🇸 EN'}</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{j.client_name}</div>
+              <div style={{ fontSize: 12, color: '#555550', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {j.address}
+              </div>
+              <div style={{ fontSize: 12, color: '#555550', whiteSpace: 'nowrap' }}>{j.job_type}</div>
+              <div><StatusBadge status={j.status} /></div>
+              <div style={{
+                fontSize: 12, fontWeight: 500, color: '#555550',
+                padding: '4px 10px', border: '1px solid #dedad4', borderRadius: 6, textAlign: 'center',
+              }}>Chat</div>
+            </Link>
+          ))}
         </div>
       </div>
     </div>

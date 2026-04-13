@@ -33,7 +33,7 @@ export default function JobsList({ jobs }: { jobs: Job[] }) {
   for (const j of jobs) byStatus[j.status] = (byStatus[j.status] || 0) + 1
 
   const sorted = [...jobs].sort((a, b) =>
-    STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status)
+    new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
   )
 
   const filtered = activeFilter
