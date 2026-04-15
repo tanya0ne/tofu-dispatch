@@ -77,9 +77,33 @@ async function _doInit() {
       status TEXT NOT NULL DEFAULT 'pending',
       created_at TEXT NOT NULL DEFAULT to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
     );
+
+    CREATE TABLE IF NOT EXISTS estimates (
+      id SERIAL PRIMARY KEY,
+      client_name TEXT NOT NULL,
+      address TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      sent_at TEXT,
+      created_at TEXT NOT NULL DEFAULT to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+    );
+
+    CREATE TABLE IF NOT EXISTS invoices (
+      id SERIAL PRIMARY KEY,
+      job_id INTEGER REFERENCES jobs(id),
+      client_name TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'unpaid',
+      due_date TEXT NOT NULL,
+      paid_at TEXT,
+      created_at TEXT NOT NULL DEFAULT to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+    );
+
+    ALTER TABLE workers ADD COLUMN IF NOT EXISTS on_worker_app BOOLEAN NOT NULL DEFAULT true;
   `)
 
   await seedIfEmpty()
+  await seedFsmIfEmpty()
 }
 
 // ── Seed pools ────────────────────────────────────────────────────────────────
@@ -361,6 +385,123 @@ async function seedIfEmpty() {
     await pool.query(
       `INSERT INTO escalations (worker_id,job_id,esc_type,description,description_translated,status,created_at) VALUES ${eRowsSql}`,
       eVals
+    )
+  }
+}
+
+// ── FSM seed (estimates, invoices, on_worker_app) ────────────────────────────
+
+async function seedFsmIfEmpty() {
+  // Idempotent: each sub-seed runs only if its table is empty.
+  const estCount = await sqlOne<{ n: string }>(`SELECT COUNT(*)::int as n FROM estimates`)
+  const invCount = await sqlOne<{ n: string }>(`SELECT COUNT(*)::int as n FROM invoices`)
+  const hasEstimates = estCount && Number(estCount.n) > 0
+  const hasInvoices  = invCount && Number(invCount.n) > 0
+
+  const now = new Date()
+  const daysAgo = (n: number) => {
+    const dt = new Date(now)
+    dt.setUTCDate(dt.getUTCDate() - n)
+    return dt.toISOString()
+  }
+  const daysFromNow = (n: number) => {
+    const dt = new Date(now)
+    dt.setUTCDate(dt.getUTCDate() + n)
+    return dt.toISOString().slice(0, 10) // date only
+  }
+
+  if (!hasEstimates) {
+    // 6 estimates: 1 draft, 3 sent (1d, 6d, 9d — last two >5d), 1 accepted, 1 rejected.
+    type EstDef = { client: string; addr: string; amount: number; status: string; sent_at: string | null }
+    const estDefs: EstDef[] = [
+      { client: pick(CLIENTS), addr: pick(ADDRESSES), amount: 50000,  status: 'draft',    sent_at: null },
+      { client: pick(CLIENTS), addr: pick(ADDRESSES), amount: 120000, status: 'sent',     sent_at: daysAgo(1) },
+      { client: pick(CLIENTS), addr: pick(ADDRESSES), amount: 240000, status: 'sent',     sent_at: daysAgo(6) },
+      { client: pick(CLIENTS), addr: pick(ADDRESSES), amount: 320000, status: 'sent',     sent_at: daysAgo(9) },
+      { client: pick(CLIENTS), addr: pick(ADDRESSES), amount: 180000, status: 'accepted', sent_at: daysAgo(3) },
+      { client: pick(CLIENTS), addr: pick(ADDRESSES), amount: 95000,  status: 'rejected', sent_at: daysAgo(4) },
+    ]
+    const eVals = estDefs.flatMap(e => [e.client, e.addr, e.amount, e.status, e.sent_at])
+    const eRows = estDefs.map((_, i) => `($${i*5+1},$${i*5+2},$${i*5+3},$${i*5+4},$${i*5+5})`).join(',')
+    await pool.query(
+      `INSERT INTO estimates (client_name,address,amount_cents,status,sent_at) VALUES ${eRows}`,
+      eVals
+    )
+  }
+
+  if (!hasInvoices) {
+    // 8 invoices linked to completed jobs. Prefer completed-today; if fewer than 8,
+    // fall back to any completed jobs so every invoice stays linked to a real job.
+    const completedToday = await sql<{ id: number; client_name: string }>(
+      `SELECT id, client_name FROM jobs
+       WHERE status='completed'
+         AND DATE(scheduled_at::timestamptz) = (NOW() AT TIME ZONE 'UTC')::date
+       ORDER BY id ASC LIMIT 8`
+    )
+    let sourceJobs: { id: number; client_name: string }[] = [...completedToday]
+    if (sourceJobs.length < 8) {
+      const need = 8 - sourceJobs.length
+      const excludeIds = sourceJobs.map(j => j.id)
+      const extra = excludeIds.length > 0
+        ? await sql<{ id: number; client_name: string }>(
+            `SELECT id, client_name FROM jobs
+             WHERE status='completed' AND id <> ALL($1::int[])
+             ORDER BY id ASC LIMIT $2`,
+            [excludeIds, need]
+          )
+        : await sql<{ id: number; client_name: string }>(
+            `SELECT id, client_name FROM jobs
+             WHERE status='completed'
+             ORDER BY id ASC LIMIT $1`,
+            [need]
+          )
+      sourceJobs = [...sourceJobs, ...extra]
+    }
+
+    type InvDef = { job_id: number | null; client: string; amount: number; status: string; due_date: string; paid_at: string | null }
+    const buildInv = (i: number, status: string, due_date: string, paid_at: string | null): InvDef => {
+      const src = sourceJobs[i]
+      return {
+        job_id: src?.id ?? null,
+        client: src?.client_name ?? pick(CLIENTS),
+        amount: randInt(15000, 90000),
+        status,
+        due_date,
+        paid_at,
+      }
+    }
+
+    const invDefs: InvDef[] = [
+      // 2 paid
+      buildInv(0, 'paid',   daysFromNow(-5),  daysAgo(3)),
+      buildInv(1, 'paid',   daysFromNow(-7),  daysAgo(2)),
+      // 2 overdue (unpaid, due_date > 14 days in past)
+      buildInv(2, 'unpaid', daysFromNow(-18), null),
+      buildInv(3, 'unpaid', daysFromNow(-20), null),
+      // 4 unpaid not overdue
+      buildInv(4, 'unpaid', daysFromNow(7),   null),
+      buildInv(5, 'unpaid', daysFromNow(14),  null),
+      buildInv(6, 'unpaid', daysFromNow(-3),  null),
+      buildInv(7, 'unpaid', daysFromNow(-10), null),
+    ]
+
+    const iVals = invDefs.flatMap(i => [i.job_id, i.client, i.amount, i.status, i.due_date, i.paid_at])
+    const iRows = invDefs.map((_, i) => `($${i*6+1},$${i*6+2},$${i*6+3},$${i*6+4},$${i*6+5},$${i*6+6})`).join(',')
+    await pool.query(
+      `INSERT INTO invoices (job_id,client_name,amount_cents,status,due_date,paid_at) VALUES ${iRows}`,
+      iVals
+    )
+  }
+
+  // on_worker_app: independent idempotency — ensures exactly one "not on app" worker
+  // regardless of invoices seed state (bugfix: was previously nested inside invoices block).
+  const offAppCount = await sqlOne<{ n: string }>(
+    `SELECT COUNT(*)::int as n FROM workers WHERE on_worker_app = false`
+  )
+  if (offAppCount && Number(offAppCount.n) === 0) {
+    await pool.query(
+      `UPDATE workers SET on_worker_app = false
+       WHERE id = (SELECT id FROM workers ORDER BY id LIMIT 1 OFFSET 4)`
     )
   }
 }
