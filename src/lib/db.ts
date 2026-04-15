@@ -82,31 +82,126 @@ async function _doInit() {
   await seedIfEmpty()
 }
 
+// ── Seed pools ────────────────────────────────────────────────────────────────
+
+const CLIENTS = [
+  'Emily Johnson', 'Robert Chen', 'Linda Marsh', 'James Taylor', 'Maria Santos',
+  'Tom Wilson', 'Anna Lee', 'Gary Brown', 'Sophia Chen', 'Michael Brown',
+  'Laura Davis', 'Peter Evans', 'Rachel Kim', 'Daniel Garcia', 'Olivia Martinez',
+  'Brian Nguyen', 'Chloe Patel', 'Ethan Wright', 'Hannah Rivera', 'Noah Bennett',
+  'Grace Foster', 'Lucas Hughes', 'Mia Alvarez', 'Jacob Morales', 'Isabella Reed',
+]
+
+const ADDRESSES = [
+  '123 Oak St, Austin TX', '456 Maple Ave, Austin TX', '789 Pine Rd, Austin TX',
+  '321 Elm St, Austin TX', '654 Cedar Blvd, Austin TX', '987 Birch Ln, Austin TX',
+  '159 Willow Way, Austin TX', '753 Spruce St, Austin TX', '246 Aspen Dr, Austin TX',
+  '135 Poplar Ct, Austin TX', '864 Hackberry Rd, Austin TX', '579 Magnolia St, Austin TX',
+  '211 Sycamore Dr, Austin TX', '488 Redbud Ln, Austin TX', '902 Juniper Ct, Austin TX',
+  '337 Mesquite Blvd, Austin TX', '1124 Pecan Grove, Austin TX', '58 Live Oak Rd, Austin TX',
+  '1701 Congress Ave, Austin TX', '220 Barton Springs Rd, Austin TX', '4410 Burnet Rd, Austin TX',
+  '3350 Lamar Blvd, Austin TX', '75 Riverside Dr, Austin TX', '1900 Rio Grande, Austin TX',
+  '606 Guadalupe St, Austin TX',
+]
+
+// Per-role: job types + instruction templates
+const ROLE_CONFIG: Record<string, { types: string[]; instructions: string[] }> = {
+  'HVAC Technician': {
+    types: ['HVAC Repair', 'HVAC Service', 'HVAC Install', 'AC Diagnostic', 'Thermostat Setup'],
+    instructions: [
+      'AC unit not cooling. Check refrigerant levels first.',
+      'Annual maintenance. Filter replacement included.',
+      'New unit install. Customer needs to be home.',
+      'Heater making noise — diagnose and quote.',
+      'Install smart thermostat, pair with customer Wi-Fi.',
+      'Condenser coils need cleaning, bring brush kit.',
+    ],
+  },
+  'Plumber': {
+    types: ['Plumbing Repair', 'Drain Cleaning', 'Water Heater', 'Leak Repair', 'Fixture Install'],
+    instructions: [
+      'Leaky pipe under kitchen sink.',
+      'Clogged main drain. Bring snake tool.',
+      'Replace 40-gallon water heater in garage.',
+      'Toilet running constantly — replace flapper/valve.',
+      'Install new bathroom faucet, customer has part.',
+      'Shower low pressure, check cartridge.',
+    ],
+  },
+  'General Contractor': {
+    types: ['Inspection', 'Repair', 'Consultation', 'Drywall Patch', 'Door Install'],
+    instructions: [
+      'Pre-sale home inspection.',
+      'Deck repair. Materials already on site.',
+      'Kitchen remodel estimate.',
+      'Patch drywall in hallway, light texture.',
+      'Hang new interior door, shim and trim.',
+      'Bathroom tile assessment, photo report to client.',
+    ],
+  },
+  'Cleaner': {
+    types: ['Deep Clean', 'Office Clean', 'Move-out Clean', 'Post-Construction', 'Recurring Clean'],
+    instructions: [
+      'Move-out clean. Pay attention to oven and bathrooms.',
+      'Weekly office cleaning. Key under mat.',
+      'Post-construction clean, wear mask, lots of dust.',
+      'Standard 3-bed deep clean, focus on kitchen.',
+      'Recurring bi-weekly, customer has pets.',
+      'Airbnb turnover, linens in hall closet.',
+    ],
+  },
+  'Painter': {
+    types: ['Interior Paint', 'Exterior Paint', 'Trim & Doors', 'Cabinet Paint', 'Touch-up'],
+    instructions: [
+      'Living room + hallway. Color: Warm White SW 7012.',
+      'Front porch only. Primer first.',
+      'Paint trim and baseboards, semi-gloss white.',
+      'Kitchen cabinets — sand, prime, 2 coats.',
+      'Touch-up in master bedroom, paint in garage.',
+      'Accent wall, navy blue, customer to confirm shade.',
+    ],
+  },
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)] }
+function pickN<T>(arr: T[], n: number): T[] {
+  const a = [...arr]
+  const out: T[] = []
+  for (let i = 0; i < n && a.length; i++) {
+    const idx = Math.floor(Math.random() * a.length)
+    out.push(a.splice(idx, 1)[0])
+  }
+  return out
+}
+function randInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+function isoAt(day: Date, hour: number, minute: number): string {
+  const dt = new Date(day)
+  dt.setUTCHours(hour, minute, 0, 0)
+  return dt.toISOString()
+}
+function startOfUTCDay(d: Date): Date {
+  const x = new Date(d)
+  x.setUTCHours(0, 0, 0, 0)
+  return x
+}
+
 async function seedIfEmpty() {
-  const today = new Date().toISOString().slice(0, 10)
-
-  // If we already have jobs for today — skip
-  const existing = await sqlOne<{ n: string }>(
-    `SELECT COUNT(*)::int as n FROM jobs WHERE DATE(scheduled_at::timestamptz AT TIME ZONE 'UTC') = $1::date`,
-    [today]
-  )
-  if (existing && Number(existing.n) > 0) return
-
-  // Clear stale data from previous days and re-seed with today's dates
-  await pool.query('TRUNCATE workers, jobs, messages, escalations RESTART IDENTITY CASCADE')
+  // Idempotency: seed ONLY when DB is completely empty.
+  // If ANY workers or jobs already exist — do not touch anything.
+  const workersCount = await sqlOne<{ n: string }>(`SELECT COUNT(*)::int as n FROM workers`)
+  const jobsCount = await sqlOne<{ n: string }>(`SELECT COUNT(*)::int as n FROM jobs`)
+  const hasWorkers = workersCount && Number(workersCount.n) > 0
+  const hasJobs = jobsCount && Number(jobsCount.n) > 0
+  if (hasWorkers || hasJobs) return
 
   const now = new Date()
-  const d = (h: number, m = 0) => {
-    const dt = new Date(now)
-    dt.setUTCHours(h, m, 0, 0)
-    return dt.toISOString()
-  }
-  const ago = (minutes: number) => {
-    const dt = new Date(now)
-    dt.setUTCMinutes(dt.getUTCMinutes() - minutes)
-    return dt.toISOString()
-  }
+  const todayStart = startOfUTCDay(now)
 
+  // Insert workers
   const workers = [
     { name: 'Miguel Rodriguez', phone: '+1-555-0101', lang: 'es', initials: 'MR', color: '#d4cfc8', role: 'HVAC Technician' },
     { name: 'Juan López',       phone: '+1-555-0102', lang: 'es', initials: 'JL', color: '#e8e4de', role: 'Plumber' },
@@ -114,32 +209,75 @@ async function seedIfEmpty() {
     { name: 'Carlos Herrera',   phone: '+1-555-0104', lang: 'es', initials: 'CH', color: '#cac5be', role: 'Cleaner' },
     { name: 'Sarah Johnson',    phone: '+1-555-0105', lang: 'en', initials: 'SJ', color: '#e2ded8', role: 'Painter' },
   ]
-
-  // Insert all workers in one query
-  const wVals = workers.flatMap((w, i) => [w.name, w.phone, w.lang, w.initials, w.color, w.role])
+  const wVals = workers.flatMap(w => [w.name, w.phone, w.lang, w.initials, w.color, w.role])
   const wRows = workers.map((_, i) => `($${i*6+1},$${i*6+2},$${i*6+3},'active',$${i*6+4},$${i*6+5},$${i*6+6})`).join(',')
   const workerIds = (await sql<{ id: number }>(
     `INSERT INTO workers (name,phone,language,status,avatar_initials,avatar_color,role) VALUES ${wRows} RETURNING id`,
     wVals
   )).map(r => r.id)
-  const [miguelId, juanId, davidId, carlosId, sarahId] = workerIds
 
-  const jobDefs = [
-    { w: miguelId, client: 'Emily Johnson',  addr: '123 Oak St, Austin TX',       at: d(8,0),   dur: 90,  status: 'completed', type: 'HVAC Repair',     inst: 'AC unit not cooling. Check refrigerant levels first.' },
-    { w: miguelId, client: 'Robert Chen',    addr: '456 Maple Ave, Austin TX',    at: d(10,30), dur: 60,  status: 'on_site',   type: 'HVAC Service',    inst: 'Annual maintenance. Filter replacement included.' },
-    { w: miguelId, client: 'Linda Marsh',    addr: '789 Pine Rd, Austin TX',      at: d(13,0),  dur: 120, status: 'confirmed', type: 'HVAC Install',    inst: 'New unit install. Customer needs to be home.' },
-    { w: juanId,   client: 'James Taylor',   addr: '321 Elm St, Austin TX',       at: d(9,0),   dur: 60,  status: 'delayed',   type: 'Plumbing Repair', inst: 'Leaky pipe under kitchen sink.' },
-    { w: juanId,   client: 'Maria Santos',   addr: '654 Cedar Blvd, Austin TX',   at: d(11,30), dur: 90,  status: 'confirmed', type: 'Drain Cleaning',  inst: 'Clogged main drain. Bring snake tool.' },
-    { w: davidId,  client: 'Tom Wilson',     addr: '987 Birch Ln, Austin TX',     at: d(8,30),  dur: 120, status: 'completed', type: 'Inspection',      inst: 'Pre-sale home inspection.' },
-    { w: davidId,  client: 'Anna Lee',       addr: '159 Willow Way, Austin TX',   at: d(11,0),  dur: 90,  status: 'on_way',    type: 'Repair',          inst: 'Deck repair. Materials already on site.' },
-    { w: davidId,  client: 'Gary Brown',     addr: '753 Spruce St, Austin TX',    at: d(14,0),  dur: 60,  status: 'confirmed', type: 'Consultation',    inst: 'Kitchen remodel estimate.' },
-    { w: carlosId, client: 'Sophia Chen',    addr: '246 Aspen Dr, Austin TX',     at: d(9,0),   dur: 120, status: 'scheduled', type: 'Deep Clean',      inst: 'Move-out clean. Pay attention to oven and bathrooms.' },
-    { w: carlosId, client: 'Michael Brown',  addr: '135 Poplar Ct, Austin TX',    at: d(12,0),  dur: 90,  status: 'scheduled', type: 'Office Clean',    inst: 'Weekly office cleaning. Key under mat.' },
-    { w: sarahId,  client: 'Laura Davis',    addr: '864 Hackberry Rd, Austin TX', at: d(8,0),   dur: 180, status: 'completed', type: 'Interior Paint',  inst: 'Living room + hallway. Color: Warm White SW 7012.' },
-    { w: sarahId,  client: 'Peter Evans',    addr: '579 Magnolia St, Austin TX',  at: d(13,0),  dur: 120, status: 'confirmed', type: 'Exterior Paint',  inst: 'Front porch only. Primer first.' },
-  ]
+  // Generate jobs for 31 days (today + 30)
+  type JobDef = {
+    w: number; client: string; addr: string; at: string; dur: number;
+    status: string; type: string; inst: string;
+    dayOffset: number; // 0 = today, 1 = tomorrow, ...
+  }
+  const jobDefs: JobDef[] = []
 
-  // Insert all jobs in one query
+  for (let dayOffset = 0; dayOffset <= 30; dayOffset++) {
+    const day = new Date(todayStart)
+    day.setUTCDate(day.getUTCDate() + dayOffset)
+
+    const nJobs = randInt(5, 8)
+
+    // Spread jobs across workers + time slots (random worker per job for variety)
+    for (let i = 0; i < nJobs; i++) {
+      const workerIdx = Math.floor(Math.random() * workers.length)
+      const workerId = workerIds[workerIdx]
+      const role = workers[workerIdx].role
+      const cfg = ROLE_CONFIG[role]
+
+      const hour = randInt(8, 17)
+      const minute = pick([0, 15, 30, 45])
+      const scheduledAt = isoAt(day, hour, minute)
+      const dur = randInt(60, 180)
+
+      // Initial status: depends on day
+      let status: string
+      if (dayOffset === 0) {
+        // Today: align with cron/tick logic at seed time
+        const schedMs = new Date(scheduledAt).getTime()
+        const endMs = schedMs + dur * 60_000
+        const nowMs = now.getTime()
+        if (endMs < nowMs) {
+          status = Math.random() < 0.85 ? 'completed' : 'delayed'
+        } else if (schedMs <= nowMs && nowMs < endMs) {
+          status = 'on_site'
+        } else if (schedMs < nowMs + 60 * 60_000) {
+          status = 'on_way'
+        } else {
+          status = Math.random() < 0.5 ? 'confirmed' : 'scheduled'
+        }
+      } else {
+        // Future: 50/50 scheduled vs confirmed
+        status = Math.random() < 0.5 ? 'scheduled' : 'confirmed'
+      }
+
+      jobDefs.push({
+        w: workerId,
+        client: pick(CLIENTS),
+        addr: pick(ADDRESSES),
+        at: scheduledAt,
+        dur,
+        status,
+        type: pick(cfg.types),
+        inst: pick(cfg.instructions),
+        dayOffset,
+      })
+    }
+  }
+
+  // Bulk-insert jobs
   const jVals = jobDefs.flatMap(j => [j.w, j.client, j.addr, j.at, j.dur, j.status, j.type, j.inst])
   const jRows = jobDefs.map((_, i) => `($${i*8+1},$${i*8+2},$${i*8+3},$${i*8+4},$${i*8+5},$${i*8+6},$${i*8+7},$${i*8+8})`).join(',')
   const jobIds = (await sql<{ id: number }>(
@@ -147,41 +285,82 @@ async function seedIfEmpty() {
     jVals
   )).map(r => r.id)
 
-  // Insert all messages and escalations in parallel
-  const msgRows = [
-    [miguelId, jobIds[0], 'outbound', "Good morning Miguel! Reminder: HVAC Repair at 123 Oak St for Emily Johnson at 8:00 AM. Please confirm when you're on your way.", "Buenos días Miguel! Recordatorio: Reparación de HVAC en 123 Oak St para Emily Johnson a las 8:00 AM. Por favor confirma cuando vayas en camino.", d(7,0), 'reminder'],
-    [miguelId, jobIds[0], 'inbound',  'Voy en camino', 'On my way', d(7,25), 'chat'],
-    [miguelId, jobIds[0], 'outbound', '✓ Got it, Miguel! Status updated. Have a great visit.', '✓ Entendido, Miguel! Estado actualizado. Que tengas una buena visita.', d(7,26), 'chat'],
-    [miguelId, jobIds[0], 'inbound',  'Trabajo terminado en Oak St', 'Work done at Oak St', d(9,35), 'chat'],
-    [miguelId, jobIds[0], 'outbound', 'Great work! Status marked as completed. Head to 456 Maple Ave next — HVAC Service for Robert Chen at 10:30 AM.', 'Buen trabajo! Estado marcado como completado. Dirígete a 456 Maple Ave — Mantenimiento de HVAC para Robert Chen a las 10:30 AM.', d(9,36), 'chat'],
-    [miguelId, jobIds[1], 'inbound',  'Llegué a Maple Ave', 'Arrived at Maple Ave', ago(45), 'chat'],
-    [miguelId, jobIds[1], 'outbound', '✓ Marked as on-site. Let me know when done!', '✓ Marcado en sitio. ¡Avísame cuando termines!', ago(44), 'chat'],
-    [juanId, jobIds[3], 'outbound', "Good morning Juan! Plumbing Repair at 321 Elm St for James Taylor at 9:00 AM. Confirm you're on your way.", "Buenos días Juan! Reparación de plomería en 321 Elm St para James Taylor a las 9:00 AM. Confirma que vas en camino.", d(8,0), 'reminder'],
-    [juanId, jobIds[3], 'inbound',  'Estoy en tráfico, llego tarde 30 min', "I'm in traffic, arriving 30 min late", d(8,45), 'chat'],
-    [juanId, jobIds[3], 'outbound', "Understood Juan. I've notified the manager. You'll hear back shortly about next steps.", 'Entendido Juan. He notificado al gerente. Pronto recibirás instrucciones.', d(8,46), 'chat'],
-    [davidId, jobIds[6], 'outbound', 'Hi David! Deck repair at 159 Willow Way for Anna Lee at 11:00 AM. Materials are already on site. Confirm when on your way.', null, ago(60), 'reminder'],
-    [davidId, jobIds[6], 'inbound',  'Heading over now, should be there in 20 min', null, ago(30), 'chat'],
-    [davidId, jobIds[6], 'outbound', '✓ On your way — noted! Anna Lee is expecting you.', null, ago(29), 'chat'],
-    [carlosId, jobIds[8], 'outbound', 'Buenos días Carlos! Limpieza profunda en 246 Aspen Dr para Sophia Chen a las 9:00 AM. Confirma que vas en camino.', 'Good morning Carlos! Deep Clean at 246 Aspen Dr for Sophia Chen at 9:00 AM. Confirm you\'re on your way.', d(8,0), 'reminder'],
-    [carlosId, jobIds[8], 'outbound', 'Carlos, aún no hemos recibido confirmación. ¿Todo bien? Por favor responde.', "Carlos, we haven't received confirmation yet. Everything OK? Please reply.", ago(30), 'reminder'],
-    [sarahId, jobIds[10], 'outbound', 'Good morning Sarah! Interior painting at 864 Hackberry Rd for Laura Davis at 8:00 AM. Let me know when you arrive!', null, d(7,30), 'reminder'],
-    [sarahId, jobIds[10], 'inbound',  'On site, starting now!', null, d(7,55), 'chat'],
-    [sarahId, jobIds[10], 'inbound',  'All done, looks great!', null, d(11,10), 'chat'],
-    [sarahId, jobIds[10], 'outbound', '✓ Marked complete. Head to 579 Magnolia St at 1:00 PM — exterior paint for Peter Evans.', null, d(11,11), 'chat'],
-  ]
-  const mVals = msgRows.flat()
-  const mRowsSql = msgRows.map((_, i) => `($${i*7+1},$${i*7+2},$${i*7+3},$${i*7+4},$${i*7+5},$${i*7+6},$${i*7+7})`).join(',')
+  // ── Messages + escalations ONLY for today's jobs ───────────────────────────
+  const todayJobs = jobDefs
+    .map((j, idx) => ({ ...j, id: jobIds[idx] }))
+    .filter(j => j.dayOffset === 0)
 
-  const escRows = [
-    [carlosId, jobIds[8], 'no_response', "Carlos hasn't confirmed for 9:00 AM at Sophia Chen (246 Aspen Dr). 2 reminders sent, no reply.", null, 'pending', ago(25)],
-    [juanId,   jobIds[3], 'delay',       'Juan is 30 min late for James Taylor (321 Elm St). Juan said: "Estoy en tráfico, llego tarde 30 min."', 'Juan has traffic delay', 'pending', d(8,46)],
-    [davidId,  jobIds[5], 'overrun',     "David's inspection at Tom Wilson (987 Birch Ln) ran over by 25 min. Affects next appointment.", null, 'resolved', d(10,55)],
-  ]
-  const eVals = escRows.flat()
-  const eRowsSql = escRows.map((_, i) => `($${i*7+1},$${i*7+2},$${i*7+3},$${i*7+4},$${i*7+5},$${i*7+6},$${i*7+7})`).join(',')
+  if (todayJobs.length === 0) {
+    return
+  }
 
-  await Promise.all([
-    pool.query(`INSERT INTO messages (worker_id,job_id,direction,content,content_translated,created_at,msg_type) VALUES ${mRowsSql}`, mVals),
-    pool.query(`INSERT INTO escalations (worker_id,job_id,esc_type,description,description_translated,status,created_at) VALUES ${eRowsSql}`, eVals),
-  ])
+  const ago = (minutes: number) => {
+    const dt = new Date(now)
+    dt.setUTCMinutes(dt.getUTCMinutes() - minutes)
+    return dt.toISOString()
+  }
+
+  // Pick a handful of today's jobs to animate with chat/escalations
+  const animated = pickN(todayJobs, Math.min(5, todayJobs.length))
+
+  const msgRows: any[][] = []
+  const escRows: any[][] = []
+
+  for (const j of animated) {
+    const reminderAt = (() => {
+      const dt = new Date(j.at); dt.setUTCMinutes(dt.getUTCMinutes() - 60); return dt.toISOString()
+    })()
+
+    if (j.status === 'completed') {
+      // "Done" messages must come AFTER job end time, not before
+      const endMs = new Date(j.at).getTime() + j.dur * 60_000
+      const doneMs = Math.min(endMs + 5 * 60_000, now.getTime())
+      const doneAt = new Date(doneMs).toISOString()
+      const doneReplyAt = new Date(doneMs + 60_000).toISOString()
+      msgRows.push([j.w, j.id, 'outbound', `Reminder: ${j.type} at ${j.addr} for ${j.client}. Confirm when on your way.`, null, reminderAt, 'reminder'])
+      msgRows.push([j.w, j.id, 'inbound',  'On my way', null, j.at, 'chat'])
+      msgRows.push([j.w, j.id, 'outbound', '✓ Status updated. Have a great visit.', null, j.at, 'chat'])
+      msgRows.push([j.w, j.id, 'inbound',  'All done, job finished.', null, doneAt, 'chat'])
+      msgRows.push([j.w, j.id, 'outbound', '✓ Marked complete. Great work!', null, doneReplyAt, 'chat'])
+    } else if (j.status === 'on_site') {
+      msgRows.push([j.w, j.id, 'outbound', `Reminder: ${j.type} at ${j.addr} for ${j.client}.`, null, reminderAt, 'reminder'])
+      msgRows.push([j.w, j.id, 'inbound',  'Arrived on site', null, ago(20), 'chat'])
+      msgRows.push([j.w, j.id, 'outbound', '✓ Marked as on-site. Let me know when done!', null, ago(19), 'chat'])
+    } else if (j.status === 'on_way') {
+      msgRows.push([j.w, j.id, 'outbound', `Reminder: ${j.type} at ${j.addr} for ${j.client} soon.`, null, reminderAt, 'reminder'])
+      msgRows.push([j.w, j.id, 'inbound',  'Heading over now', null, ago(10), 'chat'])
+      msgRows.push([j.w, j.id, 'outbound', '✓ On your way — noted!', null, ago(9), 'chat'])
+    } else if (j.status === 'delayed') {
+      msgRows.push([j.w, j.id, 'outbound', `Reminder: ${j.type} at ${j.addr} for ${j.client}. Confirm when on your way.`, null, reminderAt, 'reminder'])
+      msgRows.push([j.w, j.id, 'inbound',  "I'm in traffic, running late", null, ago(40), 'chat'])
+      msgRows.push([j.w, j.id, 'outbound', 'Understood. Notified the manager.', null, ago(39), 'chat'])
+      escRows.push([j.w, j.id, 'delay', `Worker is running late for ${j.client} at ${j.addr}.`, null, 'pending', ago(38)])
+    } else {
+      // scheduled / confirmed — just a reminder
+      msgRows.push([j.w, j.id, 'outbound', `Reminder: ${j.type} at ${j.addr} for ${j.client} at scheduled time.`, null, reminderAt, 'reminder'])
+    }
+  }
+
+  // Optional: one "no_response" escalation on a random confirmed/scheduled job for dashboard life
+  const silent = todayJobs.find(j => j.status === 'scheduled' || j.status === 'confirmed')
+  if (silent) {
+    escRows.push([silent.w, silent.id, 'no_response', `No confirmation yet for ${silent.client} at ${silent.addr}. 2 reminders sent.`, null, 'pending', ago(25)])
+  }
+
+  if (msgRows.length) {
+    const mVals = msgRows.flat()
+    const mRowsSql = msgRows.map((_, i) => `($${i*7+1},$${i*7+2},$${i*7+3},$${i*7+4},$${i*7+5},$${i*7+6},$${i*7+7})`).join(',')
+    await pool.query(
+      `INSERT INTO messages (worker_id,job_id,direction,content,content_translated,created_at,msg_type) VALUES ${mRowsSql}`,
+      mVals
+    )
+  }
+  if (escRows.length) {
+    const eVals = escRows.flat()
+    const eRowsSql = escRows.map((_, i) => `($${i*7+1},$${i*7+2},$${i*7+3},$${i*7+4},$${i*7+5},$${i*7+6},$${i*7+7})`).join(',')
+    await pool.query(
+      `INSERT INTO escalations (worker_id,job_id,esc_type,description,description_translated,status,created_at) VALUES ${eRowsSql}`,
+      eVals
+    )
+  }
 }

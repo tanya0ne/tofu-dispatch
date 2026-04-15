@@ -1,36 +1,109 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TOFU Dispatch — MVP
 
-## Getting Started
+Демо-приложение: диспетчер полевых работников. Расписание на 30 дней вперёд, автоматически «оживает» каждый день через Railway Cron.
 
-First, run the development server:
+---
+
+## Что происходит «под капотом»
+
+- При **первом старте** сервера база данных пустая. Приложение автоматически наполняет её данными: 5 работников и ~155–248 заданий на ближайшие 31 день (сегодня + 30 дней вперёд).
+- **Каждый день в 00:30 UTC** (это 03:30 по Москве, 18:30–19:30 по Остину предыдущего дня — зависит от перехода на летнее время) Railway Cron дёргает эндпоинт `/api/cron/tick`, который обновляет статусы заданий: прошедшие помечает как `completed`/`delayed`, текущие — как `on_site` или `on_way`, и т.д.
+- Благодаря этому пользователь, открывая приложение в любой день в течение месяца, видит «живые» данные на сегодня, без ручного вмешательства.
+
+---
+
+## Настройка Railway Cron (важно!)
+
+После первого деплоя нужно выполнить **3 простых шага**, иначе статусы заданий не будут обновляться автоматически.
+
+### Шаг 1. Придумать и добавить секретный ключ `CRON_SECRET`
+
+Это пароль, по которому Railway Cron будет подтверждать, что запрос действительно от него, а не от случайного прохожего.
+
+1. Сгенерируйте длинную случайную строку. Проще всего в терминале на маке: `openssl rand -hex 32` — получится 64 безопасных символа. Скопируйте результат.
+2. Зайдите в проект в Railway → откройте ваш сервис (где крутится это приложение) → вкладка **Variables**.
+3. Нажмите **New Variable** и добавьте:
+   - Имя: `CRON_SECRET`
+   - Значение: та длинная строка, которую вы сгенерировали.
+4. Сохраните. Railway автоматически перезапустит сервис.
+
+> ⚠️ Этот ключ храните в надёжном месте (например, в менеджере паролей). Он нужен для Шага 2.
+
+### Шаг 2. Создать cron-job в Railway
+
+В Railway есть отдельный тип сервиса — **Cron Job**, который по расписанию выполняет HTTP-запрос.
+
+1. В том же проекте Railway нажмите **+ New** → выберите **Empty Service** (или **Cron Job**, если такой пункт есть напрямую).
+2. В настройках нового сервиса:
+   - **Schedule (cron expression):** `30 0 * * *`  
+     Это означает: каждый день в 00 часов 30 минут UTC.
+   - **Command:** вставьте команду:
+     ```bash
+     curl -X POST \
+       -H "Authorization: Bearer $CRON_SECRET" \
+       https://<ваш-домен>.up.railway.app/api/cron/tick
+     ```
+     Замените `<ваш-домен>` на реальный домен приложения (его видно во вкладке **Settings → Domains** у основного сервиса).  
+     Если Railway пожалуется на формат — оберните команду так: `bash -c "curl -X POST -H 'Authorization: Bearer $CRON_SECRET' https://<ваш-домен>.up.railway.app/api/cron/tick"`.
+3. Во вкладке **Variables** cron-сервиса добавьте ту же переменную `CRON_SECRET` с тем же значением, что и на Шаге 1.
+4. Сохраните.
+
+### Шаг 3. Проверить, что всё работает
+
+**Вариант А — вручную сейчас.** Откройте терминал и выполните (подставив реальный домен и секрет):
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+curl -X POST \
+  -H "Authorization: Bearer ВАШ_СЕКРЕТ" \
+  https://<ваш-домен>.up.railway.app/api/cron/tick
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ожидаемый ответ:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```json
+{
+  "ok": true,
+  "updated": { "completed": 2, "delayed": 0, "on_site": 1, "on_way": 1, "confirmed": 3 }
+}
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Если запустить без заголовка — получите `401 Unauthorized`. Это значит защита работает.
 
-## Learn More
+**Вариант Б — проверить логи Railway.** В Railway откройте ваш cron-сервис → вкладка **Deployments** → **View Logs**. После срабатывания крона (в 00:30 UTC) в логах будет виден `curl`-запрос и ответ с кодом `200`.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Локальная разработка
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm install
+npm run dev
+```
 
-## Deploy on Vercel
+Приложение откроется на [http://localhost:3000](http://localhost:3000).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Для локального запуска понадобится `.env.local` в корне `product-mvp/`:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<db>
+CRON_SECRET=любая_строка_для_локальных_тестов
+```
+
+`CRON_SECRET` локально нужен только если хотите дёргать `/api/cron/tick` вручную.
+
+---
+
+## Полезное
+
+- **Seed запускается только если БД пуста.** Если работники или задания уже есть — seed не трогает ничего. Чтобы «заново» зарядить данные, нужно очистить таблицы `workers`, `jobs`, `messages`, `escalations` — тогда при следующем запросе к приложению seed отработает сам.
+- **Через ~месяц** расписание «заканчивается»: даты, заряженные seed'ом, уходят в прошлое. Тогда нужно будет снова зачистить таблицы и перезапустить приложение (seed создаст новое расписание на следующие 30 дней). Автоматического продления пока нет — это отдельная задача.
+- **Часовой пояс.** Все даты в БД хранятся в UTC. Расписание крона (`30 0 * * *`) — тоже UTC.
+
+---
+
+## Технологии
+
+- Next.js 16 (App Router) + React 19
+- TypeScript
+- PostgreSQL (библиотека `pg`)
+- Railway (хостинг + Railway Cron)
