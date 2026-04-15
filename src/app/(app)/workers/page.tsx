@@ -8,7 +8,16 @@ export default async function WorkersPage() {
   const today = new Date().toISOString().slice(0, 10)
 
   const [workers, jobsByWorker, lastMsgByWorker] = await Promise.all([
-    sql(`SELECT * FROM workers WHERE status = 'active' ORDER BY name`),
+    sql(`
+      SELECT w.*,
+        EXISTS (
+          SELECT 1 FROM jobs j
+          WHERE j.worker_id = w.id AND j.status IN ('on_way', 'on_site')
+        ) AS is_busy
+      FROM workers w
+      WHERE w.status = 'active'
+      ORDER BY w.name
+    `),
     sql(`
       SELECT worker_id,
         COUNT(*)::int as total,
@@ -78,7 +87,13 @@ export default async function WorkersPage() {
                   fontSize: 14, fontWeight: 700, color: '#1a1a18', flexShrink: 0,
                 }}>{w.avatar_initials}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>{w.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>{w.name}</div>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11.5, fontWeight: 600, color: w.is_busy ? '#c27032' : '#4e9a5a' }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: w.is_busy ? '#d88a3c' : '#5fb26f', flexShrink: 0 }} />
+                      {w.is_busy ? 'Busy' : 'Available'}
+                    </span>
+                  </div>
                   <div style={{ fontSize: 12, color: '#999990', marginTop: 1 }}>{w.role}</div>
                   <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                     <span style={{
