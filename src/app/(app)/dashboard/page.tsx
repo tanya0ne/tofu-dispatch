@@ -2,6 +2,7 @@ import { initDb, sql } from '@/lib/db'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
 import FabNewJob from '@/components/FabNewJob'
+import HeaderNewJobButton from '@/components/HeaderNewJobButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,6 +56,9 @@ export default async function DashboardPage() {
     translationsRow,
     teamRow,
     workersList,
+    remindersYdayRow,
+    confirmationsYdayRow,
+    translationsYdayRow,
   ] = await Promise.all([
     sql<any>(`
       SELECT j.*, w.name as worker_name, w.avatar_initials, w.avatar_color, w.language
@@ -148,6 +152,21 @@ export default async function DashboardPage() {
       WHERE status = 'active'
       ORDER BY name ASC
     `),
+    sql<{ n: number }>(`
+      SELECT COUNT(*)::int AS n FROM messages
+      WHERE msg_type = 'reminder'
+        AND DATE(created_at::timestamptz) = ((NOW() AT TIME ZONE 'UTC')::date - INTERVAL '1 day')
+    `),
+    sql<{ n: number }>(`
+      SELECT COUNT(*)::int AS n FROM messages
+      WHERE direction = 'inbound' AND msg_type = 'chat'
+        AND DATE(created_at::timestamptz) = ((NOW() AT TIME ZONE 'UTC')::date - INTERVAL '1 day')
+    `),
+    sql<{ n: number }>(`
+      SELECT COUNT(*)::int AS n FROM messages
+      WHERE content_translated IS NOT NULL
+        AND DATE(created_at::timestamptz) = ((NOW() AT TIME ZONE 'UTC')::date - INTERVAL '1 day')
+    `),
   ])
   const tomorrowCount       = Number(tomorrowCountRow[0]?.n ?? 0)
   const tomorrowUnassigned  = Number(tomorrowUnassignedRow[0]?.n ?? 0)
@@ -173,6 +192,12 @@ export default async function DashboardPage() {
   const translationsDone      = Number(translationsRow[0]?.n ?? 0)
   const minutesSavedRaw = remindersSent * 3 + translationsDone * 2 + confirmationsCollected * 1
   const minutesSaved = Math.round(minutesSavedRaw / 5) * 5 // round to nearest 5
+
+  const remindersYday = Number(remindersYdayRow[0]?.n ?? 0)
+  const confirmationsYday = Number(confirmationsYdayRow[0]?.n ?? 0)
+  const translationsYday = Number(translationsYdayRow[0]?.n ?? 0)
+  const minutesSavedYdayRaw = remindersYday * 3 + translationsYday * 2 + confirmationsYday * 1
+  const minutesSavedYday = Math.round(minutesSavedYdayRaw / 5) * 5
   const teamTotal = Number(teamRow[0]?.total ?? 0)
   const teamOnApp = Number(teamRow[0]?.on_app ?? 0)
   const teamOnAppPct = teamTotal > 0 ? Math.round((teamOnApp / teamTotal) * 100) : 0
@@ -194,13 +219,57 @@ export default async function DashboardPage() {
   const dateStr = now.toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC',
   })
-  const summary = `${confirmedCount} of ${jobsToday.length} jobs confirmed today · ${attentionCount} item${attentionCount === 1 ? '' : 's'} need attention`
+  const attentionText = attentionCount === 0
+    ? 'Nothing needs attention'
+    : `${attentionCount} item${attentionCount === 1 ? '' : 's'} need attention`
 
   const needsAttentionEmpty =
     escalations.length === 0 &&
     overdueInvoices.length === 0 &&
     stuckEstimates.length === 0 &&
     jobsReadyForInvoice.length === 0
+
+  // Unified priority score — sort all attention sources into one list.
+  type AttentionItem =
+    | { kind: 'escalation'; score: number; data: any }
+    | { kind: 'invoice'; score: number; data: any }
+    | { kind: 'estimate'; score: number; data: any }
+    | { kind: 'jobsReady'; score: number; data: any[] }
+
+  function moneyFactor(amountCents: number) {
+    return 1 + Math.min(2, amountCents / 100000)
+  }
+
+  const attentionItems: AttentionItem[] = []
+
+  for (const e of escalations) {
+    const urgency =
+      e.esc_type === 'no_response' ? 100 :
+      e.esc_type === 'overrun'     ? 80  :
+      e.esc_type === 'delay'       ? 60  : 50
+    attentionItems.push({ kind: 'escalation', score: urgency * 1, data: e })
+  }
+
+  for (const inv of overdueInvoices) {
+    const days = daysOverdue(inv.due_date)
+    const urgency = Math.min(100, days * 3)
+    const score = urgency * moneyFactor(Number(inv.amount_cents ?? 0))
+    attentionItems.push({ kind: 'invoice', score, data: inv })
+  }
+
+  for (const est of stuckEstimates) {
+    const days = daysAgoFromIso(est.sent_at)
+    const urgency = Math.min(70, days * 5)
+    const score = urgency * moneyFactor(Number(est.amount_cents ?? 0))
+    attentionItems.push({ kind: 'estimate', score, data: est })
+  }
+
+  if (jobsReadyForInvoice.length > 0) {
+    const urgency = 30 * jobsReadyForInvoice.length
+    attentionItems.push({ kind: 'jobsReady', score: urgency * 1, data: jobsReadyForInvoice })
+  }
+
+  attentionItems.sort((a, b) => b.score - a.score)
 
   // Shared styles
   const cardBase = {
@@ -229,16 +298,108 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <div style={{ padding: '32px 36px', maxWidth: 1100, paddingBottom: 120 }}>
+      <style>{`
+        .dash-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 32px;
+        }
+        @media (min-width: 1024px) {
+          .dash-grid {
+            grid-template-columns: minmax(0, 62fr) minmax(0, 38fr);
+            gap: 32px;
+            align-items: start;
+          }
+          .dash-right {
+            position: sticky;
+            top: 32px;
+          }
+        }
+
+        .dash-today-header,
+        .dash-today-row {
+          display: grid;
+          grid-template-columns: 80px 170px 120px 1fr 110px 100px 60px;
+        }
+        @media (max-width: 768px) {
+          .dash-today-header { display: none; }
+          .dash-today-row {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+          }
+          .dash-today-row > * { white-space: normal !important; }
+        }
+
+        .dash-metrics {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+        }
+        @media (max-width: 640px) {
+          .dash-metrics { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .dash-money {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+        @media (max-width: 768px) {
+          .dash-money { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 640px) {
+          .dash-header-row {
+            flex-direction: column;
+            align-items: flex-start !important;
+          }
+        }
+      `}</style>
+      <div style={{ padding: '32px 36px', maxWidth: 1280, paddingBottom: 120 }}>
 
         {/* Header */}
         <div style={{ marginBottom: 32 }}>
-          <div style={{ fontSize: 13, color: '#999990', marginBottom: 4 }}>{dateStr}</div>
-          <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.03em', color: '#1a1a18' }}>
-            {greeting}, James
-          </h1>
-          <p style={{ fontSize: 14, color: '#555550', marginTop: 4 }}>{summary}</p>
+          <div style={{
+            display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap',
+            marginBottom: 4,
+          }}>
+            <div style={{ fontSize: 13, color: '#999990' }}>{dateStr}</div>
+            <div style={{ fontSize: 11, color: '#999990' }}>
+              Updated {String(now.getUTCHours()).padStart(2, '0')}:{String(now.getUTCMinutes()).padStart(2, '0')} UTC
+            </div>
+          </div>
+          <div className="dash-header-row" style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            flexWrap: 'wrap',
+          }}>
+            <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.03em', color: '#1a1a18' }}>
+              {greeting}, James
+            </h1>
+            <HeaderNewJobButton workers={workersList} />
+          </div>
+          <p style={{
+            fontSize: 14,
+            color: attentionCount === 0 ? '#999990' : '#555550',
+            marginTop: 4,
+          }}>
+            {attentionCount === 0 ? (
+              <span>{attentionText}</span>
+            ) : (
+              <>
+                {confirmedCount} of {jobsToday.length} jobs confirmed today ·{' '}
+                <span style={{ color: '#7f1d1d', fontWeight: 600 }}>{attentionText}</span>
+              </>
+            )}
+          </p>
         </div>
+
+        <div className="dash-grid">
+        <div className="dash-left">
 
         {/* ZONE 1 — Needs Your Attention */}
         <div style={{ marginBottom: 32 }}>
@@ -258,114 +419,118 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-
-              {/* 1) Escalations (Dispatch) */}
-              {escalations.map((e: any) => (
-                <div key={`esc-${e.id}`} style={cardBase}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: '50%',
-                    background: e.avatar_color, display: 'flex',
-                    alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, fontWeight: 700, color: '#1a1a18', flexShrink: 0,
-                  }}>{e.avatar_initials}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600 }}>{e.worker_name}</span>
-                      <StatusBadge status={e.esc_type} />
-                      <span style={{ fontSize: 12, color: '#999990', marginLeft: 'auto' }}>{timeAgo(e.created_at)}</span>
+              {attentionItems.map((item) => {
+                if (item.kind === 'escalation') {
+                  const e = item.data
+                  return (
+                    <div key={`esc-${e.id}`} style={cardBase}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: '50%',
+                        background: e.avatar_color, display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
+                        fontSize: 12, fontWeight: 700, color: '#1a1a18', flexShrink: 0,
+                      }}>{e.avatar_initials}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600 }}>{e.worker_name}</span>
+                          <StatusBadge status={e.esc_type} />
+                          <span style={{ fontSize: 12, color: '#999990', marginLeft: 'auto' }}>{timeAgo(e.created_at)}</span>
+                        </div>
+                        <p style={{ fontSize: 13.5, color: '#555550', lineHeight: 1.5 }}>{e.description}</p>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                        <a href={`tel:${e.worker_phone}`} style={btnLight}>Call</a>
+                        <Link href={`/chat/${e.worker_id}`} style={btnDark}>Message</Link>
+                        <EscalationDismiss id={e.id} />
+                      </div>
                     </div>
-                    <p style={{ fontSize: 13.5, color: '#555550', lineHeight: 1.5 }}>{e.description}</p>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                    <a href={`tel:${e.worker_phone}`} style={btnLight}>Call</a>
-                    <Link href={`/chat/${e.worker_id}`} style={btnDark}>Message</Link>
-                    <EscalationDismiss id={e.id} />
-                  </div>
-                </div>
-              ))}
-
-              {/* 2) Overdue invoices */}
-              {overdueInvoices.map((inv: any) => (
-                <div key={`inv-${inv.id}`} style={cardBase}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 8,
-                    background: '#fff', border: '1px solid #dedad4',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 16, flexShrink: 0,
-                  }}>$</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600 }}>
-                        Invoice #{inv.id} — {inv.client_name}
-                      </span>
-                      <span style={{ fontSize: 12, color: '#7f1d1d', fontWeight: 600, marginLeft: 'auto' }}>
-                        {daysOverdue(inv.due_date)} days overdue
-                      </span>
+                  )
+                }
+                if (item.kind === 'invoice') {
+                  const inv = item.data
+                  return (
+                    <div key={`inv-${inv.id}`} style={cardBase}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 8,
+                        background: '#fff', border: '1px solid #dedad4',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 16, flexShrink: 0,
+                      }}>$</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600 }}>
+                            Invoice #{inv.id} — {inv.client_name}
+                          </span>
+                          <span style={{ fontSize: 12, color: '#7f1d1d', fontWeight: 600, marginLeft: 'auto' }}>
+                            {daysOverdue(inv.due_date)} days overdue
+                          </span>
+                        </div>
+                        <p style={{ fontSize: 13.5, color: '#555550', lineHeight: 1.5 }}>
+                          {money(inv.amount_cents)} overdue — due {new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                        <button type="button" style={btnLight}>View</button>
+                        <button type="button" style={btnDark}>Send reminder</button>
+                      </div>
                     </div>
-                    <p style={{ fontSize: 13.5, color: '#555550', lineHeight: 1.5 }}>
-                      {money(inv.amount_cents)} overdue — due {new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                    <button type="button" style={btnLight}>View</button>
-                    <button type="button" style={btnDark}>Send reminder</button>
-                  </div>
-                </div>
-              ))}
-
-              {/* 3) Stuck estimates */}
-              {stuckEstimates.map((est: any) => (
-                <div key={`est-${est.id}`} style={cardBase}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 8,
-                    background: '#fff', border: '1px solid #dedad4',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 14, fontWeight: 700, flexShrink: 0,
-                  }}>E</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600 }}>
-                        Estimate #{est.id} — {est.client_name}
-                      </span>
-                      <span style={{ fontSize: 12, color: '#999990', marginLeft: 'auto' }}>
-                        sent {daysAgoFromIso(est.sent_at)} days ago
-                      </span>
+                  )
+                }
+                if (item.kind === 'estimate') {
+                  const est = item.data
+                  return (
+                    <div key={`est-${est.id}`} style={cardBase}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 8,
+                        background: '#fff', border: '1px solid #dedad4',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14, fontWeight: 700, flexShrink: 0,
+                      }}>E</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600 }}>
+                            Estimate #{est.id} — {est.client_name}
+                          </span>
+                          <span style={{ fontSize: 12, color: '#999990', marginLeft: 'auto' }}>
+                            sent {daysAgoFromIso(est.sent_at)} days ago
+                          </span>
+                        </div>
+                        <p style={{ fontSize: 13.5, color: '#555550', lineHeight: 1.5 }}>
+                          {money(est.amount_cents)} — no response
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                        <button type="button" style={btnDark}>Follow up</button>
+                        <button type="button" style={btnLight}>View</button>
+                      </div>
                     </div>
-                    <p style={{ fontSize: 13.5, color: '#555550', lineHeight: 1.5 }}>
-                      {money(est.amount_cents)} — no response
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                    <button type="button" style={btnDark}>Follow up</button>
-                    <button type="button" style={btnLight}>View</button>
-                  </div>
-                </div>
-              ))}
-
-              {/* 4) Jobs ready for invoice — grouped single card */}
-              {jobsReadyForInvoice.length > 0 && (
-                <div style={cardBase}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 8,
-                    background: '#fff', border: '1px solid #dedad4',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 14, fontWeight: 700, flexShrink: 0,
-                  }}>✓</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-                      {jobsReadyForInvoice.length} completed job{jobsReadyForInvoice.length === 1 ? '' : 's'} ready to invoice
+                  )
+                }
+                // jobsReady
+                const jobs = item.data
+                return (
+                  <div key="jobs-ready" style={cardBase}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 8,
+                      background: '#fff', border: '1px solid #dedad4',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 14, fontWeight: 700, flexShrink: 0,
+                    }}>✓</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                        {jobs.length} completed job{jobs.length === 1 ? '' : 's'} ready to invoice
+                      </div>
+                      <p style={{ fontSize: 13.5, color: '#555550', lineHeight: 1.5 }}>
+                        {jobs.slice(0, 4).map((j: any) => j.client_name).join(', ')}
+                        {jobs.length > 4 ? ` and ${jobs.length - 4} more` : ''}
+                      </p>
                     </div>
-                    <p style={{ fontSize: 13.5, color: '#555550', lineHeight: 1.5 }}>
-                      {jobsReadyForInvoice.slice(0, 4).map((j: any) => j.client_name).join(', ')}
-                      {jobsReadyForInvoice.length > 4 ? ` and ${jobsReadyForInvoice.length - 4} more` : ''}
-                    </p>
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                      <button type="button" style={btnDark}>Create invoice</button>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                    <button type="button" style={btnDark}>Create invoice</button>
-                  </div>
-                </div>
-              )}
-
+                )
+              })}
             </div>
           )}
         </div>
@@ -374,7 +539,12 @@ export default async function DashboardPage() {
         <div style={{ marginBottom: 32 }}>
           <div style={sectionLabel}>Today&apos;s schedule</div>
           <div style={{ fontSize: 13, color: '#555550', marginBottom: 12 }}>
-            {jobsToday.length} visit{jobsToday.length === 1 ? '' : 's'} today · {confirmedCount} confirmed · {overdueTodayCount} overdue
+            {jobsToday.length} visit{jobsToday.length === 1 ? '' : 's'} today · {confirmedCount} confirmed ·{' '}
+            {overdueTodayCount > 0 ? (
+              <span style={{ color: '#7f1d1d', fontWeight: 600 }}>{overdueTodayCount} overdue</span>
+            ) : (
+              <>{overdueTodayCount} overdue</>
+            )}
           </div>
 
           {jobsToday.length === 0 ? (
@@ -393,8 +563,7 @@ export default async function DashboardPage() {
           ) : (
             <div style={{ background: '#fff', border: '1px solid #eeece8', borderRadius: 12, overflow: 'hidden' }}>
               {/* Header row */}
-              <div style={{
-                display: 'grid', gridTemplateColumns: '80px 170px 120px 1fr 110px 100px 60px',
+              <div className="dash-today-header" style={{
                 borderBottom: '1px solid #eeece8', padding: '11px 16px',
               }}>
                 {['Time', 'Worker', 'Client', 'Address', 'Type', 'Status', ''].map(h => (
@@ -406,8 +575,7 @@ export default async function DashboardPage() {
               </div>
               {/* Data rows */}
               {jobsToday.map((j: any, i: number) => (
-                <Link key={j.id} href={`/chat/${j.worker_id}`} style={{
-                  display: 'grid', gridTemplateColumns: '80px 170px 120px 1fr 110px 100px 60px',
+                <Link key={j.id} href={`/chat/${j.worker_id}`} className="dash-today-row" style={{
                   padding: '12px 16px', textDecoration: 'none', color: 'inherit',
                   borderBottom: i < jobsToday.length - 1 ? '1px solid #eeece8' : 'none',
                   background: i % 2 === 1 ? '#faf9f7' : '#fff',
@@ -454,7 +622,12 @@ export default async function DashboardPage() {
               background: '#f2ede6', color: '#555550',
               fontSize: 12, fontWeight: 600,
             }}>
-              + Tomorrow: {tomorrowCount} visit{tomorrowCount === 1 ? '' : 's'}{tomorrowUnassigned > 0 ? `, ${tomorrowUnassigned} unassigned` : ''}
+              + Tomorrow: {tomorrowCount} visit{tomorrowCount === 1 ? '' : 's'}
+              {tomorrowUnassigned > 0 && (
+                <>
+                  ,&nbsp;<span style={{ color: '#7f1d1d', fontWeight: 700 }}>{tomorrowUnassigned} unassigned</span>
+                </>
+              )}
             </span>
             <Link href="/jobs?range=week" style={{
               color: '#1a1a18', textDecoration: 'none', fontWeight: 600,
@@ -464,11 +637,14 @@ export default async function DashboardPage() {
           </div>
         </div>
 
+        </div>{/* /dash-left */}
+        <div className="dash-right">
+
         {/* ZONE 3 — Money (conditional) */}
         {showMoneyZone && (
           <div style={{ marginBottom: 32 }}>
             <div style={sectionLabel}>Money</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="dash-money">
               {/* Estimates block */}
               <div style={{
                 background: '#fff',
@@ -532,32 +708,40 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* ZONE 4 — Tofu worked for you today */}
+        {/* ZONE 4 — Automation — today */}
         <div style={{ marginBottom: 8 }}>
-          <div style={sectionLabel}>Tofu worked for you today</div>
+          <div style={sectionLabel}>Automation — today</div>
 
           {/* 4 metric cubes */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 14 }}>
-            {[
-              { label: 'Reminders sent',         value: remindersSent,          sub: 'to workers' },
-              { label: 'Confirmations collected', value: confirmationsCollected, sub: 'from workers' },
-              { label: 'Translations done',       value: translationsDone,       sub: 'auto-translated' },
-              { label: 'Minutes saved',           value: minutesSaved,           sub: 'your time' },
-            ].map((m) => (
-              <div key={m.label} style={{
-                background: '#fff',
-                border: '1px solid #eeece8',
-                borderRadius: 12,
-                padding: '20px 20px',
-              }}>
-                <div style={{
-                  fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em',
-                  color: '#1a1a18', lineHeight: 1, marginBottom: 6,
-                }}>{m.value}</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a18' }}>{m.label}</div>
-                <div style={{ fontSize: 12, color: '#999990', marginTop: 2 }}>{m.sub}</div>
-              </div>
-            ))}
+          <div className="dash-metrics" style={{ marginBottom: 14 }}>
+            {([
+              { label: 'Reminders sent',          value: remindersSent,          yday: remindersYday,         tip: undefined as string | undefined },
+              { label: 'Confirmations collected', value: confirmationsCollected, yday: confirmationsYday,     tip: undefined as string | undefined },
+              { label: 'Translations done',       value: translationsDone,       yday: translationsYday,      tip: undefined as string | undefined },
+              { label: 'Minutes saved',           value: minutesSaved,           yday: minutesSavedYday,      tip: 'Reminders×3 + Translations×2 + Confirmations×1, rounded to 5 min' },
+            ]).map((m) => {
+              const delta = m.value - m.yday
+              const arrow = delta > 0 ? `↑${delta}` : delta < 0 ? `↓${Math.abs(delta)}` : '—'
+              const deltaColor = delta > 0 ? '#1a1a18' : delta < 0 ? '#7f1d1d' : '#999990'
+              return (
+                <div key={m.label} title={m.tip} style={{
+                  background: '#fff',
+                  border: '1px solid #eeece8',
+                  borderRadius: 12,
+                  padding: '20px 20px',
+                  cursor: m.tip ? 'help' : 'default',
+                }}>
+                  <div style={{
+                    fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em',
+                    color: '#1a1a18', lineHeight: 1, marginBottom: 6,
+                  }}>{m.value}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a18' }}>{m.label}</div>
+                  <div style={{ fontSize: 11, color: '#999990', marginTop: 2 }}>
+                    vs {m.yday} yesterday <span style={{ color: deltaColor, fontWeight: 600 }}>({arrow})</span>
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           {/* Team-on-app progress bar */}
@@ -580,6 +764,9 @@ export default async function DashboardPage() {
             </div>
           </div>
         </div>
+
+        </div>{/* /dash-right */}
+        </div>{/* /dash-grid */}
 
       </div>
       <FabNewJob workers={workersList} />

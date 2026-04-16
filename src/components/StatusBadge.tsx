@@ -9,9 +9,9 @@ const LABELS: Record<string, string> = {
   pending:     'Pending',
   resolved:    'Resolved',
   dismissed:   'Dismissed',
-  no_response: 'No response',
-  overrun:     'Overrun',
-  delay:       'Delay',
+  no_response: 'Not responding',
+  overrun:     'Over time',
+  delay:       'Running late',
 }
 
 export default function StatusBadge({ status }: { status: string }) {
