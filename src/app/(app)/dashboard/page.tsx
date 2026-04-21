@@ -54,7 +54,6 @@ export default async function DashboardPage() {
     remindersRow,
     confirmationsRow,
     translationsRow,
-    teamRow,
     workersList,
     remindersYdayRow,
     confirmationsYdayRow,
@@ -140,12 +139,6 @@ export default async function DashboardPage() {
       WHERE content_translated IS NOT NULL
         AND DATE(created_at::timestamptz) = (NOW() AT TIME ZONE 'UTC')::date
     `),
-    sql<{ total: number; on_app: number }>(`
-      SELECT COUNT(*)::int AS total,
-             COUNT(*) FILTER (WHERE on_worker_app = true)::int AS on_app
-      FROM workers
-      WHERE status = 'active'
-    `),
     sql<{ id: number; name: string; avatar_initials: string; avatar_color: string }>(`
       SELECT id, name, avatar_initials, avatar_color
       FROM workers
@@ -198,9 +191,6 @@ export default async function DashboardPage() {
   const translationsYday = Number(translationsYdayRow[0]?.n ?? 0)
   const minutesSavedYdayRaw = remindersYday * 3 + translationsYday * 2 + confirmationsYday * 1
   const minutesSavedYday = Math.round(minutesSavedYdayRaw / 5) * 5
-  const teamTotal = Number(teamRow[0]?.total ?? 0)
-  const teamOnApp = Number(teamRow[0]?.on_app ?? 0)
-  const teamOnAppPct = teamTotal > 0 ? Math.round((teamOnApp / teamTotal) * 100) : 0
 
   const confirmedLike = ['confirmed', 'on_way', 'on_site', 'completed']
   const confirmedCount = jobsToday.filter((j: any) => confirmedLike.includes(j.status)).length
@@ -839,25 +829,32 @@ export default async function DashboardPage() {
             })}
           </div>
 
-          {/* Team-on-app progress bar */}
-          <div>
-            <div style={{ fontSize: 12, color: 'var(--ink-secondary)', marginBottom: 6 }}>
-              Team on Worker app: {teamOnAppPct}% ({teamOnApp} of {teamTotal})
-            </div>
-            <div style={{
-              width: '100%',
-              height: 6,
-              background: 'var(--border-light)',
-              borderRadius: 3,
-              overflow: 'hidden',
-            }}>
+          {/* Activity summary */}
+          {(() => {
+            const totalActions = remindersSent + confirmationsCollected + translationsDone
+            return (
               <div style={{
-                width: `${teamOnAppPct}%`,
-                height: '100%',
-                background: 'var(--ink)',
-              }} />
-            </div>
-          </div>
+                fontSize: 13,
+                color: 'var(--ink-secondary)',
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 8,
+                flexWrap: 'wrap',
+              }}>
+                <span>
+                  Dispatch did {totalActions} thing{totalActions === 1 ? '' : 's'} today.
+                </span>
+                <Link href="/chat" style={{
+                  color: 'var(--ink-secondary)',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: 3,
+                  fontWeight: 500,
+                }}>
+                  See full activity log →
+                </Link>
+              </div>
+            )
+          })()}
         </div>
 
         </div>{/* /dash-right */}
