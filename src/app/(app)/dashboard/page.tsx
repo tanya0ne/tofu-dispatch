@@ -297,20 +297,9 @@ export default async function DashboardPage() {
     <>
       <style>{`
         .dash-grid {
-          display: grid;
-          grid-template-columns: 1fr;
+          display: flex;
+          flex-direction: column;
           gap: 32px;
-        }
-        @media (min-width: 1024px) {
-          .dash-grid {
-            grid-template-columns: minmax(0, 62fr) minmax(0, 38fr);
-            gap: 32px;
-            align-items: start;
-          }
-          .dash-right {
-            position: sticky;
-            top: 32px;
-          }
         }
 
         .dash-metrics {
@@ -338,7 +327,7 @@ export default async function DashboardPage() {
           }
         }
       `}</style>
-      <div style={{ padding: '40px 44px', maxWidth: 1280, paddingBottom: 120 }}>
+      <div style={{ padding: '40px 44px', maxWidth: 960, paddingBottom: 120 }}>
 
         {/* Header */}
         <div style={{ marginBottom: 40 }}>
@@ -373,53 +362,12 @@ export default async function DashboardPage() {
         <div className="dash-grid">
         <div className="dash-left">
 
-        {/* ZONE 1 — Quick things (attention list) */}
+        {/* ZONE 1 — Needs your decision (show just the top item) */}
         <div style={{ marginBottom: 40 }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 14,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-              <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
-                Quick things
-              </span>
-              {!needsAttentionEmpty && (
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: 28,
-                  height: 22,
-                  padding: '0 8px',
-                  borderRadius: 999,
-                  background: 'var(--bg-warm)',
-                  color: 'var(--ink-secondary)',
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}>
-                  {attentionCount}
-                </span>
-              )}
-            </div>
-            {!needsAttentionEmpty && (
-              <a href="#" style={{
-                fontSize: 13,
-                fontWeight: 500,
-                color: 'var(--ink-secondary)',
-                textDecoration: 'underline',
-                textUnderlineOffset: 3,
-              }}>
-                Review all
-              </a>
-            )}
-          </div>
-
           {needsAttentionEmpty ? (
             <div style={{
-              background: 'var(--bg-warm)',
-              border: '1px solid var(--border)',
+              background: '#fff',
+              border: '1px solid var(--border-light)',
               borderRadius: 12,
               padding: '28px 20px',
               textAlign: 'center',
@@ -428,151 +376,180 @@ export default async function DashboardPage() {
             }}>
               You&apos;re all caught up. Nice.
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {attentionItems.map((item, itemIdx) => {
-                const isTopPriority = itemIdx === 0
-                const cardStyle = isTopPriority
-                  ? { ...cardBase, background: 'var(--accent-yellow-bg)', border: '1px solid var(--accent-yellow-border)' }
-                  : cardBase
+          ) : (() => {
+            const topItem = attentionItems[0]
+            const inQueue = Math.max(0, attentionCount - 1)
 
-                const topLabel = isTopPriority ? (
-                  <div style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: 'var(--accent-yellow-text)',
-                    padding: '0 2px 6px',
-                    letterSpacing: '0.005em',
-                  }}>
-                    Needs next step
-                  </div>
-                ) : null
-
-                if (item.kind === 'escalation') {
-                  const e = item.data
-                  return (
-                    <div key={`esc-${e.id}`}>
-                      {topLabel}
-                      <div style={cardStyle}>
-                        <div style={{
-                          width: 36, height: 36, borderRadius: '50%',
-                          background: e.avatar_color, display: 'flex',
-                          alignItems: 'center', justifyContent: 'center',
-                          fontSize: 12, fontWeight: 700, color: 'var(--ink)', flexShrink: 0,
-                        }}>{e.avatar_initials}</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                            <span style={{ fontSize: 14, fontWeight: 600 }}>{e.worker_name}</span>
-                            <StatusBadge status={e.esc_type} />
-                            <span style={{ fontSize: 12, color: 'var(--ink-tertiary)', marginLeft: 'auto' }}>{timeAgo(e.created_at)}</span>
-                          </div>
-                          <p style={{ fontSize: 13.5, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>{e.description}</p>
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                          <a href={`tel:${e.worker_phone}`} style={btnLight}>Call</a>
-                          <Link href={`/chat/${e.worker_id}`} style={btnDark}>Message</Link>
-                          <EscalationDismiss id={e.id} />
-                        </div>
-                      </div>
-                    </div>
-                  )
-                }
-                if (item.kind === 'invoice') {
-                  const inv = item.data
-                  return (
-                    <div key={`inv-${inv.id}`}>
-                      {topLabel}
-                      <div style={cardStyle}>
-                        <div style={{
-                          width: 36, height: 36, borderRadius: 8,
-                          background: '#fff', border: '1px solid var(--border)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 16, flexShrink: 0,
-                        }}>$</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                            <span style={{ fontSize: 14, fontWeight: 600 }}>
-                              Invoice #{inv.id} — {inv.client_name}
-                            </span>
-                            <span style={{ fontSize: 12, color: '#8b2424', fontWeight: 600, marginLeft: 'auto' }}>
-                              {daysOverdue(inv.due_date)} days overdue
-                            </span>
-                          </div>
-                          <p style={{ fontSize: 13.5, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>
-                            {money(inv.amount_cents)} overdue — due {new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
-                          </p>
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                          <button type="button" style={btnLight}>View</button>
-                          <button type="button" style={btnDark}>Send reminder</button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                }
-                if (item.kind === 'estimate') {
-                  const est = item.data
-                  return (
-                    <div key={`est-${est.id}`}>
-                      {topLabel}
-                      <div style={cardStyle}>
-                        <div style={{
-                          width: 36, height: 36, borderRadius: 8,
-                          background: '#fff', border: '1px solid var(--border)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 14, fontWeight: 700, flexShrink: 0,
-                        }}>E</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                            <span style={{ fontSize: 14, fontWeight: 600 }}>
-                              Estimate #{est.id} — {est.client_name}
-                            </span>
-                            <span style={{ fontSize: 12, color: 'var(--ink-tertiary)', marginLeft: 'auto' }}>
-                              sent {daysAgoFromIso(est.sent_at)} days ago
-                            </span>
-                          </div>
-                          <p style={{ fontSize: 13.5, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>
-                            {money(est.amount_cents)} — no response
-                          </p>
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                          <button type="button" style={btnDark}>Follow up</button>
-                          <button type="button" style={btnLight}>View</button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                }
-                // jobsReady
-                const jobs = item.data
+            const renderCard = () => {
+              if (topItem.kind === 'escalation') {
+                const e = topItem.data
                 return (
-                  <div key="jobs-ready">
-                    {topLabel}
-                    <div style={cardStyle}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: 8,
-                        background: '#fff', border: '1px solid var(--border)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 14, fontWeight: 700, flexShrink: 0,
-                      }}>✓</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-                          {jobs.length} completed job{jobs.length === 1 ? '' : 's'} ready to invoice
-                        </div>
-                        <p style={{ fontSize: 13.5, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>
-                          {jobs.slice(0, 4).map((j: any) => j.client_name).join(', ')}
-                          {jobs.length > 4 ? ` and ${jobs.length - 4} more` : ''}
-                        </p>
+                  <div style={cardBase}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      background: e.avatar_color, display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontWeight: 700, color: 'var(--ink)', flexShrink: 0,
+                    }}>{e.avatar_initials}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>{e.worker_name}</span>
+                        <StatusBadge status={e.esc_type} />
+                        <span style={{ fontSize: 12, color: 'var(--ink-tertiary)', marginLeft: 'auto' }}>{timeAgo(e.created_at)}</span>
                       </div>
-                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                        <button type="button" style={btnDark}>Create invoice</button>
-                      </div>
+                      <p style={{ fontSize: 13.5, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>{e.description}</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                      <a href={`tel:${e.worker_phone}`} style={btnLight}>Call</a>
+                      <Link href={`/chat/${e.worker_id}`} style={btnDark}>Message</Link>
+                      <EscalationDismiss id={e.id} />
                     </div>
                   </div>
                 )
-              })}
-            </div>
-          )}
+              }
+              if (topItem.kind === 'invoice') {
+                const inv = topItem.data
+                return (
+                  <div style={cardBase}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 8,
+                      background: '#fff', border: '1px solid var(--border)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 16, flexShrink: 0,
+                    }}>$</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>
+                          Invoice #{inv.id} — {inv.client_name}
+                        </span>
+                        <span style={{ fontSize: 12, color: '#8b2424', fontWeight: 600, marginLeft: 'auto' }}>
+                          {daysOverdue(inv.due_date)} days overdue
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 13.5, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>
+                        {money(inv.amount_cents)} overdue — due {new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                      <button type="button" style={btnLight}>View</button>
+                      <button type="button" style={btnDark}>Send reminder</button>
+                    </div>
+                  </div>
+                )
+              }
+              if (topItem.kind === 'estimate') {
+                const est = topItem.data
+                return (
+                  <div style={cardBase}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 8,
+                      background: '#fff', border: '1px solid var(--border)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 14, fontWeight: 700, flexShrink: 0,
+                    }}>E</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>
+                          Estimate #{est.id} — {est.client_name}
+                        </span>
+                        <span style={{ fontSize: 12, color: 'var(--ink-tertiary)', marginLeft: 'auto' }}>
+                          sent {daysAgoFromIso(est.sent_at)} days ago
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 13.5, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>
+                        {money(est.amount_cents)} — no response
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                      <button type="button" style={btnDark}>Follow up</button>
+                      <button type="button" style={btnLight}>View</button>
+                    </div>
+                  </div>
+                )
+              }
+              const jobs = topItem.data
+              return (
+                <div style={cardBase}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 8,
+                    background: '#fff', border: '1px solid var(--border)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14, fontWeight: 700, flexShrink: 0,
+                  }}>✓</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                      {jobs.length} completed job{jobs.length === 1 ? '' : 's'} ready to invoice
+                    </div>
+                    <p style={{ fontSize: 13.5, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>
+                      {jobs.slice(0, 4).map((j: { client_name: string }) => j.client_name).join(', ')}
+                      {jobs.length > 4 ? ` and ${jobs.length - 4} more` : ''}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <button type="button" style={btnDark}>Create invoice</button>
+                  </div>
+                </div>
+              )
+            }
+
+            return (
+              <>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  marginBottom: 14,
+                  flexWrap: 'wrap',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{
+                      width: 10, height: 10, borderRadius: '50%',
+                      background: 'var(--accent-red-dot)',
+                      display: 'inline-block',
+                    }} />
+                    <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+                      Needs your decision
+                    </h2>
+                  </div>
+                  {inQueue > 0 && (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 7,
+                      padding: '4px 12px 4px 10px',
+                      borderRadius: 999,
+                      background: 'var(--accent-red-pill-bg)',
+                      color: 'var(--accent-red-pill-text)',
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}>
+                      <span style={{
+                        width: 8, height: 8, borderRadius: '50%',
+                        background: 'var(--accent-red-dot)',
+                        display: 'inline-block',
+                      }} />
+                      {inQueue} in queue
+                    </span>
+                  )}
+                </div>
+                {renderCard()}
+                {inQueue > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <a href="#" style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: 'var(--ink-secondary)',
+                      textDecoration: 'underline',
+                      textUnderlineOffset: 3,
+                    }}>
+                      Review all →
+                    </a>
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </div>
 
         {/* ZONE 2 — Today's visits */}

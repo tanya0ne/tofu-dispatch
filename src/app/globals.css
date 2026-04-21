@@ -19,6 +19,11 @@
   --accent-yellow-icon: #f5c84a;
   --accent-yellow-text: #5d4d10;
 
+  /* Decision / red accent */
+  --accent-red-dot: #e0443e;
+  --accent-red-pill-bg: #fbe8e8;
+  --accent-red-pill-text: #8b2424;
+
   /* "Now" marker */
   --now-bg: #1d4ed8;
   --now-text: #ffffff;
