@@ -80,6 +80,18 @@ export default function Sidebar() {
 
       {/* Bottom */}
       <div style={{ padding: '14px 22px 22px', borderTop: '1px solid var(--border-light)' }}>
+        <Link href="/setup" style={{
+          display: 'inline-block',
+          fontSize: 11,
+          fontWeight: 500,
+          color: 'var(--ink-tertiary)',
+          textDecoration: 'underline',
+          textUnderlineOffset: 3,
+          marginBottom: 10,
+          letterSpacing: '0.01em',
+        }}>
+          ▸ Try onboarding demo
+        </Link>
         <div style={{ fontSize: 11, color: 'var(--ink-tertiary)' }}>Manager view</div>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginTop: 2 }}>James Martinez</div>
       </div>
