@@ -216,8 +216,9 @@ export default async function DashboardPage() {
   const now = new Date()
   const hour = now.getUTCHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-  const dateStr = now.toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC',
+  const nowMs = now.getTime()
+  const nowLabel = now.toLocaleTimeString('en-US', {
+    hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC',
   })
   const attentionText = attentionCount === 0
     ? 'Nothing needs attention'
@@ -273,28 +274,24 @@ export default async function DashboardPage() {
 
   // Shared styles
   const cardBase = {
-    background: '#f2ede6',
-    border: '1px solid #dedad4',
+    background: '#fff',
+    border: '1px solid var(--border-light)',
     borderRadius: 12,
-    padding: '18px 20px',
+    padding: '16px 18px',
     display: 'flex',
     alignItems: 'flex-start',
     gap: 14,
   } as const
   const btnLight = {
-    padding: '7px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600,
-    background: '#fff', color: '#1a1a18', border: '1px solid #dedad4',
+    padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+    background: '#fff', color: 'var(--ink)', border: '1px solid var(--border)',
     textDecoration: 'none', display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
   } as const
   const btnDark = {
-    padding: '7px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600,
-    background: '#1a1a18', color: '#fff', textDecoration: 'none',
+    padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+    background: 'var(--primary)', color: '#fff', textDecoration: 'none',
     border: 'none', display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
   } as const
-  const sectionLabel = {
-    fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const,
-    letterSpacing: '0.1em', color: '#999990', marginBottom: 12,
-  }
 
   return (
     <>
@@ -314,22 +311,6 @@ export default async function DashboardPage() {
             position: sticky;
             top: 32px;
           }
-        }
-
-        .dash-today-header,
-        .dash-today-row {
-          display: grid;
-          grid-template-columns: 80px 170px 120px 1fr 110px 100px 60px;
-        }
-        @media (max-width: 768px) {
-          .dash-today-header { display: none; }
-          .dash-today-row {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 4px;
-          }
-          .dash-today-row > * { white-space: normal !important; }
         }
 
         .dash-metrics {
@@ -357,42 +338,33 @@ export default async function DashboardPage() {
           }
         }
       `}</style>
-      <div style={{ padding: '32px 36px', maxWidth: 1280, paddingBottom: 120 }}>
+      <div style={{ padding: '40px 44px', maxWidth: 1280, paddingBottom: 120 }}>
 
         {/* Header */}
-        <div style={{ marginBottom: 32 }}>
-          <div style={{
-            display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap',
-            marginBottom: 4,
-          }}>
-            <div style={{ fontSize: 13, color: '#999990' }}>{dateStr}</div>
-            <div style={{ fontSize: 11, color: '#999990' }}>
-              Updated {String(now.getUTCHours()).padStart(2, '0')}:{String(now.getUTCMinutes()).padStart(2, '0')} UTC
-            </div>
-          </div>
+        <div style={{ marginBottom: 40 }}>
           <div className="dash-header-row" style={{
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             justifyContent: 'space-between',
-            gap: 16,
+            gap: 20,
             flexWrap: 'wrap',
+            marginBottom: 8,
           }}>
-            <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.03em', color: '#1a1a18' }}>
+            <h1 style={{ fontSize: 38, fontWeight: 700, letterSpacing: '-0.035em', color: 'var(--ink)', lineHeight: 1.1 }}>
               {greeting}, James
             </h1>
             <HeaderNewJobButton workers={workersList} />
           </div>
           <p style={{
-            fontSize: 14,
-            color: attentionCount === 0 ? '#999990' : '#555550',
-            marginTop: 4,
+            fontSize: 15,
+            color: attentionCount === 0 ? 'var(--ink-tertiary)' : 'var(--ink-secondary)',
           }}>
             {attentionCount === 0 ? (
               <span>{attentionText}</span>
             ) : (
               <>
                 {confirmedCount} of {jobsToday.length} jobs confirmed today ·{' '}
-                <span style={{ color: '#7f1d1d', fontWeight: 600 }}>{attentionText}</span>
+                <span style={{ color: '#8b2424', fontWeight: 600 }}>{attentionText}</span>
               </>
             )}
           </p>
@@ -401,47 +373,106 @@ export default async function DashboardPage() {
         <div className="dash-grid">
         <div className="dash-left">
 
-        {/* ZONE 1 — Needs Your Attention */}
-        <div style={{ marginBottom: 32 }}>
-          <div style={sectionLabel}>Needs your attention</div>
+        {/* ZONE 1 — Quick things (attention list) */}
+        <div style={{ marginBottom: 40 }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 14,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+                Quick things
+              </span>
+              {!needsAttentionEmpty && (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 28,
+                  height: 22,
+                  padding: '0 8px',
+                  borderRadius: 999,
+                  background: 'var(--bg-warm)',
+                  color: 'var(--ink-secondary)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}>
+                  {attentionCount}
+                </span>
+              )}
+            </div>
+            {!needsAttentionEmpty && (
+              <a href="#" style={{
+                fontSize: 13,
+                fontWeight: 500,
+                color: 'var(--ink-secondary)',
+                textDecoration: 'underline',
+                textUnderlineOffset: 3,
+              }}>
+                Review all
+              </a>
+            )}
+          </div>
 
           {needsAttentionEmpty ? (
             <div style={{
-              background: '#f2ede6',
-              border: '1px solid #dedad4',
+              background: 'var(--bg-warm)',
+              border: '1px solid var(--border)',
               borderRadius: 12,
               padding: '28px 20px',
               textAlign: 'center',
-              color: '#555550',
+              color: 'var(--ink-secondary)',
               fontSize: 14,
             }}>
               You&apos;re all caught up. Nice.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {attentionItems.map((item) => {
+              {attentionItems.map((item, itemIdx) => {
+                const isTopPriority = itemIdx === 0
+                const cardStyle = isTopPriority
+                  ? { ...cardBase, background: 'var(--accent-yellow-bg)', border: '1px solid var(--accent-yellow-border)' }
+                  : cardBase
+
+                const topLabel = isTopPriority ? (
+                  <div style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--accent-yellow-text)',
+                    padding: '0 2px 6px',
+                    letterSpacing: '0.005em',
+                  }}>
+                    Needs next step
+                  </div>
+                ) : null
+
                 if (item.kind === 'escalation') {
                   const e = item.data
                   return (
-                    <div key={`esc-${e.id}`} style={cardBase}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: '50%',
-                        background: e.avatar_color, display: 'flex',
-                        alignItems: 'center', justifyContent: 'center',
-                        fontSize: 12, fontWeight: 700, color: '#1a1a18', flexShrink: 0,
-                      }}>{e.avatar_initials}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 14, fontWeight: 600 }}>{e.worker_name}</span>
-                          <StatusBadge status={e.esc_type} />
-                          <span style={{ fontSize: 12, color: '#999990', marginLeft: 'auto' }}>{timeAgo(e.created_at)}</span>
+                    <div key={`esc-${e.id}`}>
+                      {topLabel}
+                      <div style={cardStyle}>
+                        <div style={{
+                          width: 36, height: 36, borderRadius: '50%',
+                          background: e.avatar_color, display: 'flex',
+                          alignItems: 'center', justifyContent: 'center',
+                          fontSize: 12, fontWeight: 700, color: 'var(--ink)', flexShrink: 0,
+                        }}>{e.avatar_initials}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontSize: 14, fontWeight: 600 }}>{e.worker_name}</span>
+                            <StatusBadge status={e.esc_type} />
+                            <span style={{ fontSize: 12, color: 'var(--ink-tertiary)', marginLeft: 'auto' }}>{timeAgo(e.created_at)}</span>
+                          </div>
+                          <p style={{ fontSize: 13.5, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>{e.description}</p>
                         </div>
-                        <p style={{ fontSize: 13.5, color: '#555550', lineHeight: 1.5 }}>{e.description}</p>
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                        <a href={`tel:${e.worker_phone}`} style={btnLight}>Call</a>
-                        <Link href={`/chat/${e.worker_id}`} style={btnDark}>Message</Link>
-                        <EscalationDismiss id={e.id} />
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                          <a href={`tel:${e.worker_phone}`} style={btnLight}>Call</a>
+                          <Link href={`/chat/${e.worker_id}`} style={btnDark}>Message</Link>
+                          <EscalationDismiss id={e.id} />
+                        </div>
                       </div>
                     </div>
                   )
@@ -449,29 +480,32 @@ export default async function DashboardPage() {
                 if (item.kind === 'invoice') {
                   const inv = item.data
                   return (
-                    <div key={`inv-${inv.id}`} style={cardBase}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: 8,
-                        background: '#fff', border: '1px solid #dedad4',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 16, flexShrink: 0,
-                      }}>$</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 14, fontWeight: 600 }}>
-                            Invoice #{inv.id} — {inv.client_name}
-                          </span>
-                          <span style={{ fontSize: 12, color: '#7f1d1d', fontWeight: 600, marginLeft: 'auto' }}>
-                            {daysOverdue(inv.due_date)} days overdue
-                          </span>
+                    <div key={`inv-${inv.id}`}>
+                      {topLabel}
+                      <div style={cardStyle}>
+                        <div style={{
+                          width: 36, height: 36, borderRadius: 8,
+                          background: '#fff', border: '1px solid var(--border)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 16, flexShrink: 0,
+                        }}>$</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontSize: 14, fontWeight: 600 }}>
+                              Invoice #{inv.id} — {inv.client_name}
+                            </span>
+                            <span style={{ fontSize: 12, color: '#8b2424', fontWeight: 600, marginLeft: 'auto' }}>
+                              {daysOverdue(inv.due_date)} days overdue
+                            </span>
+                          </div>
+                          <p style={{ fontSize: 13.5, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>
+                            {money(inv.amount_cents)} overdue — due {new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+                          </p>
                         </div>
-                        <p style={{ fontSize: 13.5, color: '#555550', lineHeight: 1.5 }}>
-                          {money(inv.amount_cents)} overdue — due {new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
-                        </p>
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                        <button type="button" style={btnLight}>View</button>
-                        <button type="button" style={btnDark}>Send reminder</button>
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                          <button type="button" style={btnLight}>View</button>
+                          <button type="button" style={btnDark}>Send reminder</button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -479,29 +513,32 @@ export default async function DashboardPage() {
                 if (item.kind === 'estimate') {
                   const est = item.data
                   return (
-                    <div key={`est-${est.id}`} style={cardBase}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: 8,
-                        background: '#fff', border: '1px solid #dedad4',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 14, fontWeight: 700, flexShrink: 0,
-                      }}>E</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 14, fontWeight: 600 }}>
-                            Estimate #{est.id} — {est.client_name}
-                          </span>
-                          <span style={{ fontSize: 12, color: '#999990', marginLeft: 'auto' }}>
-                            sent {daysAgoFromIso(est.sent_at)} days ago
-                          </span>
+                    <div key={`est-${est.id}`}>
+                      {topLabel}
+                      <div style={cardStyle}>
+                        <div style={{
+                          width: 36, height: 36, borderRadius: 8,
+                          background: '#fff', border: '1px solid var(--border)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 14, fontWeight: 700, flexShrink: 0,
+                        }}>E</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontSize: 14, fontWeight: 600 }}>
+                              Estimate #{est.id} — {est.client_name}
+                            </span>
+                            <span style={{ fontSize: 12, color: 'var(--ink-tertiary)', marginLeft: 'auto' }}>
+                              sent {daysAgoFromIso(est.sent_at)} days ago
+                            </span>
+                          </div>
+                          <p style={{ fontSize: 13.5, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>
+                            {money(est.amount_cents)} — no response
+                          </p>
                         </div>
-                        <p style={{ fontSize: 13.5, color: '#555550', lineHeight: 1.5 }}>
-                          {money(est.amount_cents)} — no response
-                        </p>
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                        <button type="button" style={btnDark}>Follow up</button>
-                        <button type="button" style={btnLight}>View</button>
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                          <button type="button" style={btnDark}>Follow up</button>
+                          <button type="button" style={btnLight}>View</button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -509,24 +546,27 @@ export default async function DashboardPage() {
                 // jobsReady
                 const jobs = item.data
                 return (
-                  <div key="jobs-ready" style={cardBase}>
-                    <div style={{
-                      width: 36, height: 36, borderRadius: 8,
-                      background: '#fff', border: '1px solid #dedad4',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 14, fontWeight: 700, flexShrink: 0,
-                    }}>✓</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-                        {jobs.length} completed job{jobs.length === 1 ? '' : 's'} ready to invoice
+                  <div key="jobs-ready">
+                    {topLabel}
+                    <div style={cardStyle}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 8,
+                        background: '#fff', border: '1px solid var(--border)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14, fontWeight: 700, flexShrink: 0,
+                      }}>✓</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                          {jobs.length} completed job{jobs.length === 1 ? '' : 's'} ready to invoice
+                        </div>
+                        <p style={{ fontSize: 13.5, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>
+                          {jobs.slice(0, 4).map((j: any) => j.client_name).join(', ')}
+                          {jobs.length > 4 ? ` and ${jobs.length - 4} more` : ''}
+                        </p>
                       </div>
-                      <p style={{ fontSize: 13.5, color: '#555550', lineHeight: 1.5 }}>
-                        {jobs.slice(0, 4).map((j: any) => j.client_name).join(', ')}
-                        {jobs.length > 4 ? ` and ${jobs.length - 4} more` : ''}
-                      </p>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                      <button type="button" style={btnDark}>Create invoice</button>
+                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                        <button type="button" style={btnDark}>Create invoice</button>
+                      </div>
                     </div>
                   </div>
                 )
@@ -535,102 +575,159 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {/* ZONE 2 — Today */}
-        <div style={{ marginBottom: 32 }}>
-          <div style={sectionLabel}>Today&apos;s schedule</div>
-          <div style={{ fontSize: 13, color: '#555550', marginBottom: 12 }}>
-            {jobsToday.length} visit{jobsToday.length === 1 ? '' : 's'} today · {confirmedCount} confirmed ·{' '}
-            {overdueTodayCount > 0 ? (
-              <span style={{ color: '#7f1d1d', fontWeight: 600 }}>{overdueTodayCount} overdue</span>
-            ) : (
-              <>{overdueTodayCount} overdue</>
-            )}
+        {/* ZONE 2 — Today's visits */}
+        <div style={{ marginBottom: 40 }}>
+          <div style={{
+            display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+            marginBottom: 6, gap: 12, flexWrap: 'wrap',
+          }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.01em' }}>
+              Today&apos;s visits
+            </h2>
+            <div style={{ fontSize: 13, color: 'var(--ink-secondary)' }}>
+              {jobsToday.length} visit{jobsToday.length === 1 ? '' : 's'} · {confirmedCount} confirmed
+              {overdueTodayCount > 0 && (
+                <>
+                  {' · '}
+                  <span style={{ color: '#8b2424', fontWeight: 600 }}>{overdueTodayCount} overdue</span>
+                </>
+              )}
+            </div>
           </div>
 
           {jobsToday.length === 0 ? (
             <div style={{
-              background: '#f6f5f3',
-              border: '1px solid #eeece8',
+              background: '#fff',
+              border: '1px solid var(--border-light)',
               borderRadius: 12,
               padding: '28px 24px',
               display: 'flex', alignItems: 'center', gap: 16,
             }}>
-              <div style={{ flex: 1, fontSize: 14, color: '#555550' }}>
+              <div style={{ flex: 1, fontSize: 14, color: 'var(--ink-secondary)' }}>
                 No visits today. {sentEstimatesCount} estimate{sentEstimatesCount === 1 ? '' : 's'} awaiting client response — Dispatch can send a follow-up.
               </div>
               <button type="button" style={btnDark}>Follow up</button>
             </div>
           ) : (
-            <div style={{ background: '#fff', border: '1px solid #eeece8', borderRadius: 12, overflow: 'hidden' }}>
-              {/* Header row */}
-              <div className="dash-today-header" style={{
-                borderBottom: '1px solid #eeece8', padding: '11px 16px',
-              }}>
-                {['Time', 'Worker', 'Client', 'Address', 'Type', 'Status', ''].map(h => (
-                  <div key={h} style={{
-                    fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                    letterSpacing: '0.07em', color: '#999990',
-                  }}>{h}</div>
-                ))}
-              </div>
-              {/* Data rows */}
-              {jobsToday.map((j: any, i: number) => (
-                <Link key={j.id} href={`/chat/${j.worker_id}`} className="dash-today-row" style={{
-                  padding: '12px 16px', textDecoration: 'none', color: 'inherit',
-                  borderBottom: i < jobsToday.length - 1 ? '1px solid #eeece8' : 'none',
-                  background: i % 2 === 1 ? '#faf9f7' : '#fff',
-                  alignItems: 'center',
-                }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#555550', whiteSpace: 'nowrap' }}>
-                    {fmtTime(j.scheduled_at)}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{
-                      width: 28, height: 28, borderRadius: '50%',
-                      background: j.avatar_color, display: 'flex',
-                      alignItems: 'center', justifyContent: 'center',
-                      fontSize: 10, fontWeight: 700, color: '#1a1a18', flexShrink: 0,
-                    }}>{j.avatar_initials}</div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>{j.worker_name}</div>
-                      <div style={{ fontSize: 11, color: '#999990' }}>{j.language === 'es' ? '🇲🇽 ES' : '🇺🇸 EN'}</div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{j.client_name}</div>
-                  <div style={{ fontSize: 12, color: '#555550', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {j.address}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#555550', whiteSpace: 'nowrap' }}>{j.job_type}</div>
-                  <div><StatusBadge status={j.status} /></div>
-                  <div style={{
-                    fontSize: 12, fontWeight: 500, color: '#555550',
-                    padding: '4px 10px', border: '1px solid #dedad4', borderRadius: 6, textAlign: 'center',
-                  }}>Chat</div>
-                </Link>
-              ))}
+            <div style={{
+              background: '#fff',
+              border: '1px solid var(--border-light)',
+              borderRadius: 12,
+              overflow: 'hidden',
+            }}>
+              {(() => {
+                let markerInserted = false
+                const rows: React.ReactNode[] = []
+                jobsToday.forEach((j: any, i: number) => {
+                  const jobMs = new Date(j.scheduled_at).getTime()
+                  if (!markerInserted && jobMs >= nowMs) {
+                    rows.push(
+                      <div key="now-marker" style={{
+                        position: 'relative',
+                        height: 0,
+                      }}>
+                        <div style={{
+                          position: 'absolute',
+                          top: -1,
+                          left: 20,
+                          right: 0,
+                          height: 0,
+                          borderTop: '1.5px solid var(--now-bg)',
+                          zIndex: 1,
+                        }} />
+                        <div style={{
+                          position: 'absolute',
+                          top: -11,
+                          left: 14,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: 'var(--now-text)',
+                          background: 'var(--now-bg)',
+                          padding: '3px 9px',
+                          borderRadius: 999,
+                          letterSpacing: '0.01em',
+                          zIndex: 2,
+                        }}>{nowLabel}</div>
+                      </div>
+                    )
+                    markerInserted = true
+                  }
+                  rows.push(
+                    <Link
+                      key={j.id}
+                      href={`/chat/${j.worker_id}`}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '96px 1fr auto',
+                        gap: 18,
+                        alignItems: 'center',
+                        padding: '14px 20px',
+                        textDecoration: 'none',
+                        color: 'inherit',
+                        borderBottom: i < jobsToday.length - 1 ? '1px solid var(--border-light)' : 'none',
+                      }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-secondary)', whiteSpace: 'nowrap' }}>
+                        {fmtTime(j.scheduled_at)}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {j.job_type}
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--ink-tertiary)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {j.client_name}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <StatusBadge status={j.status} />
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          padding: '3px 10px 3px 8px',
+                          border: '1px solid var(--border)',
+                          borderRadius: 999,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: 'var(--ink-secondary)',
+                          background: '#fff',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                          </svg>
+                          {j.worker_name.split(' ')[0]}
+                        </span>
+                      </div>
+                    </Link>
+                  )
+                })
+                return rows
+              })()}
             </div>
           )}
 
-          {/* Under-table row: tomorrow badge + week link */}
+          {/* Under-list row: tomorrow badge + week link */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 16,
-            marginTop: 12, fontSize: 13,
+            marginTop: 14, fontSize: 13, flexWrap: 'wrap',
           }}>
             <span style={{
               display: 'inline-flex', alignItems: 'center',
-              padding: '5px 11px', borderRadius: 100,
-              background: '#f2ede6', color: '#555550',
-              fontSize: 12, fontWeight: 600,
+              padding: '5px 12px', borderRadius: 999,
+              background: 'var(--bg-warm)', color: 'var(--ink-secondary)',
+              fontSize: 12, fontWeight: 500,
             }}>
               + Tomorrow: {tomorrowCount} visit{tomorrowCount === 1 ? '' : 's'}
               {tomorrowUnassigned > 0 && (
                 <>
-                  ,&nbsp;<span style={{ color: '#7f1d1d', fontWeight: 700 }}>{tomorrowUnassigned} unassigned</span>
+                  ,&nbsp;<span style={{ color: '#8b2424', fontWeight: 600 }}>{tomorrowUnassigned} unassigned</span>
                 </>
               )}
             </span>
             <Link href="/jobs?range=week" style={{
-              color: '#1a1a18', textDecoration: 'none', fontWeight: 600,
+              color: 'var(--ink)', textDecoration: 'none', fontWeight: 500,
             }}>
               This week: {weekCount} visit{weekCount === 1 ? '' : 's'} →
             </Link>
@@ -642,32 +739,42 @@ export default async function DashboardPage() {
 
         {/* ZONE 3 — Money (conditional) */}
         {showMoneyZone && (
-          <div style={{ marginBottom: 32 }}>
-            <div style={sectionLabel}>Money</div>
+          <div style={{ marginBottom: 40 }}>
+            <h2 style={{
+              fontSize: 18, fontWeight: 700, color: 'var(--ink)',
+              letterSpacing: '-0.01em', marginBottom: 14,
+            }}>Money</h2>
             <div className="dash-money">
               {/* Estimates block */}
               <div style={{
                 background: '#fff',
-                border: '1px solid #eeece8',
+                border: '1px solid var(--border-light)',
                 borderRadius: 12,
-                padding: '20px 22px',
+                padding: '18px 20px',
               }}>
                 <div style={{
-                  fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                  letterSpacing: '0.07em', color: '#999990', marginBottom: 8,
-                }}>Estimates</div>
+                  width: 32, height: 32, borderRadius: 8,
+                  background: 'var(--bg-alt)',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--ink-secondary)', marginBottom: 12,
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                  </svg>
+                </div>
                 {estimatesWaiting.count > 0 ? (
                   <>
-                    <div style={{ fontSize: 14, color: '#1a1a18', lineHeight: 1.5 }}>
-                      {estimatesWaiting.count} awaiting client · {money(estimatesWaiting.total_cents)} total
+                    <div style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.45 }}>
+                      <strong style={{ fontWeight: 600 }}>{estimatesWaiting.count} awaiting client</strong> · {money(estimatesWaiting.total_cents)} total
                       {estimatesWaiting.oldest_sent_at
-                        ? ` · oldest ${daysAgoFromIso(estimatesWaiting.oldest_sent_at)} days old`
-                        : ''}
+                        ? <> · oldest {daysAgoFromIso(estimatesWaiting.oldest_sent_at)} days old</>
+                        : null}
                     </div>
                     <Link href="/jobs" style={{
-                      display: 'inline-block', marginTop: 10,
-                      fontSize: 13, fontWeight: 600, color: '#1a1a18', textDecoration: 'none',
-                    }}>View estimates →</Link>
+                      display: 'inline-block', marginTop: 12,
+                      fontSize: 13, fontWeight: 500, color: 'var(--ink-tertiary)', textDecoration: 'underline', textUnderlineOffset: 3,
+                    }}>see pending estimates</Link>
                   </>
                 ) : (
                   <div style={{ fontSize: 13, color: '#999990' }}>No estimates awaiting.</div>
@@ -677,31 +784,39 @@ export default async function DashboardPage() {
               {/* Invoices block */}
               <div style={{
                 background: '#fff',
-                border: '1px solid #eeece8',
+                border: '1px solid var(--border-light)',
                 borderRadius: 12,
-                padding: '20px 22px',
+                padding: '18px 20px',
               }}>
                 <div style={{
-                  fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                  letterSpacing: '0.07em', color: '#999990', marginBottom: 8,
-                }}>Invoices</div>
+                  width: 32, height: 32, borderRadius: 8,
+                  background: 'var(--bg-alt)',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--ink-secondary)', marginBottom: 12,
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="6" width="20" height="12" rx="2"/>
+                    <circle cx="12" cy="12" r="2"/>
+                    <path d="M6 12h.01M18 12h.01"/>
+                  </svg>
+                </div>
                 {invoicesUnpaid.count > 0 ? (
                   <>
-                    <div style={{ fontSize: 14, color: '#1a1a18', lineHeight: 1.5 }}>
-                      {invoicesUnpaid.count} unpaid · {money(invoicesUnpaid.total_cents)} total
+                    <div style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.45 }}>
+                      <strong style={{ fontWeight: 600 }}>{invoicesUnpaid.count} unpaid</strong> · {money(invoicesUnpaid.total_cents)} total
                     </div>
                     {invoicesOverdue.count > 0 && (
-                      <div style={{ fontSize: 14, color: '#7f1d1d', lineHeight: 1.5, marginTop: 2 }}>
+                      <div style={{ fontSize: 13, color: '#8b2424', lineHeight: 1.45, marginTop: 2 }}>
                         {invoicesOverdue.count} overdue · {money(invoicesOverdue.total_cents)}
                       </div>
                     )}
                     <Link href="/jobs" style={{
-                      display: 'inline-block', marginTop: 10,
-                      fontSize: 13, fontWeight: 600, color: '#1a1a18', textDecoration: 'none',
-                    }}>View invoices →</Link>
+                      display: 'inline-block', marginTop: 12,
+                      fontSize: 13, fontWeight: 500, color: 'var(--ink-tertiary)', textDecoration: 'underline', textUnderlineOffset: 3,
+                    }}>see unpaid invoices</Link>
                   </>
                 ) : (
-                  <div style={{ fontSize: 13, color: '#999990' }}>All invoices paid.</div>
+                  <div style={{ fontSize: 13, color: 'var(--ink-tertiary)' }}>All invoices paid.</div>
                 )}
               </div>
             </div>
@@ -710,7 +825,10 @@ export default async function DashboardPage() {
 
         {/* ZONE 4 — Automation — today */}
         <div style={{ marginBottom: 8 }}>
-          <div style={sectionLabel}>Automation — today</div>
+          <h2 style={{
+            fontSize: 18, fontWeight: 700, color: 'var(--ink)',
+            letterSpacing: '-0.01em', marginBottom: 14,
+          }}>Automation — today</h2>
 
           {/* 4 metric cubes */}
           <div className="dash-metrics" style={{ marginBottom: 14 }}>
@@ -722,22 +840,22 @@ export default async function DashboardPage() {
             ]).map((m) => {
               const delta = m.value - m.yday
               const arrow = delta > 0 ? `↑${delta}` : delta < 0 ? `↓${Math.abs(delta)}` : '—'
-              const deltaColor = delta > 0 ? '#1a1a18' : delta < 0 ? '#7f1d1d' : '#999990'
+              const deltaColor = delta > 0 ? 'var(--ink)' : delta < 0 ? '#8b2424' : 'var(--ink-tertiary)'
               return (
                 <div key={m.label} title={m.tip} style={{
                   background: '#fff',
-                  border: '1px solid #eeece8',
+                  border: '1px solid var(--border-light)',
                   borderRadius: 12,
-                  padding: '20px 20px',
+                  padding: '18px 20px',
                   cursor: m.tip ? 'help' : 'default',
                 }}>
                   <div style={{
-                    fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em',
-                    color: '#1a1a18', lineHeight: 1, marginBottom: 6,
+                    fontSize: 28, fontWeight: 700, letterSpacing: '-0.035em',
+                    color: 'var(--ink)', lineHeight: 1, marginBottom: 6,
                   }}>{m.value}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a18' }}>{m.label}</div>
-                  <div style={{ fontSize: 11, color: '#999990', marginTop: 2 }}>
-                    vs {m.yday} yesterday <span style={{ color: deltaColor, fontWeight: 600 }}>({arrow})</span>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{m.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-tertiary)', marginTop: 2 }}>
+                    vs {m.yday} yesterday <span style={{ color: deltaColor, fontWeight: 500 }}>({arrow})</span>
                   </div>
                 </div>
               )
@@ -746,20 +864,20 @@ export default async function DashboardPage() {
 
           {/* Team-on-app progress bar */}
           <div>
-            <div style={{ fontSize: 12, color: '#555550', marginBottom: 6 }}>
+            <div style={{ fontSize: 12, color: 'var(--ink-secondary)', marginBottom: 6 }}>
               Team on Worker app: {teamOnAppPct}% ({teamOnApp} of {teamTotal})
             </div>
             <div style={{
               width: '100%',
               height: 6,
-              background: '#eeece8',
+              background: 'var(--border-light)',
               borderRadius: 3,
               overflow: 'hidden',
             }}>
               <div style={{
                 width: `${teamOnAppPct}%`,
                 height: '100%',
-                background: '#1a1a18',
+                background: 'var(--ink)',
               }} />
             </div>
           </div>
@@ -779,8 +897,8 @@ function EscalationDismiss({ id }: { id: number }) {
     <form action={`/api/escalations/${id}`} method="POST">
       <input type="hidden" name="_method" value="PATCH" />
       <button type="submit" style={{
-        padding: '7px 14px', borderRadius: 7, fontSize: 13, fontWeight: 500,
-        background: '#fff', color: '#555550', border: '1px solid #dedad4',
+        padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+        background: '#fff', color: 'var(--ink-secondary)', border: '1px solid var(--border)',
         cursor: 'pointer',
       }}>Dismiss</button>
     </form>

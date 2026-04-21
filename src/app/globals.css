@@ -12,6 +12,28 @@
   --border-light: #eeece8;
   --primary: #1a1a18;
   --primary-hover: #2e2e2a;
+
+  /* Accent surfaces */
+  --accent-yellow-bg: #fdf6cc;
+  --accent-yellow-border: #f2e79a;
+  --accent-yellow-icon: #f5c84a;
+  --accent-yellow-text: #5d4d10;
+
+  /* "Now" marker */
+  --now-bg: #1d4ed8;
+  --now-text: #ffffff;
+
+  /* Chip palette — softer muted pills */
+  --chip-green-bg: #e6f0e1;
+  --chip-green-text: #2d5a36;
+  --chip-blue-bg:  #e4eafb;
+  --chip-blue-text:  #1e3a8a;
+  --chip-red-bg:   #fbe4e4;
+  --chip-red-text:   #8b2424;
+  --chip-amber-bg: #fbeecd;
+  --chip-amber-text: #73511c;
+  --chip-neutral-bg: #ececec;
+  --chip-neutral-text: #555550;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,19 +45,20 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Status colours */
-.badge-confirmed  { background: #e8e4de; color: #2a2a26; }
-.badge-on_way     { background: #fef3c7; color: #78350f; }
-.badge-on_site    { background: #dbeafe; color: #1e3a8a; }
-.badge-completed  { background: #dcfce7; color: #14532d; }
-.badge-delayed    { background: #fee2e2; color: #7f1d1d; }
-.badge-scheduled  { background: #f3f4f6; color: #374151; }
-.badge-cancelled  { background: #f3f4f6; color: #9ca3af; }
-.badge-pending    { background: #fef3c7; color: #78350f; }
-.badge-resolved   { background: #dcfce7; color: #14532d; }
-.badge-no_response{ background: #fee2e2; color: #7f1d1d; }
-.badge-overrun    { background: #fef3c7; color: #78350f; }
-.badge-delay      { background: #fee2e2; color: #7f1d1d; }
+/* Status colours — softened pill palette */
+.badge-confirmed  { background: var(--chip-green-bg);   color: var(--chip-green-text); }
+.badge-on_way     { background: var(--chip-amber-bg);   color: var(--chip-amber-text); }
+.badge-on_site    { background: var(--chip-blue-bg);    color: var(--chip-blue-text); }
+.badge-completed  { background: var(--chip-green-bg);   color: var(--chip-green-text); }
+.badge-delayed    { background: var(--chip-red-bg);     color: var(--chip-red-text); }
+.badge-scheduled  { background: var(--chip-neutral-bg); color: var(--chip-neutral-text); }
+.badge-cancelled  { background: var(--chip-neutral-bg); color: var(--ink-tertiary); }
+.badge-pending    { background: var(--chip-amber-bg);   color: var(--chip-amber-text); }
+.badge-resolved   { background: var(--chip-green-bg);   color: var(--chip-green-text); }
+.badge-no_response{ background: var(--chip-red-bg);     color: var(--chip-red-text); }
+.badge-overrun    { background: var(--chip-amber-bg);   color: var(--chip-amber-text); }
+.badge-delay      { background: var(--chip-red-bg);     color: var(--chip-red-text); }
+.badge-in_progress{ background: var(--chip-blue-bg);    color: var(--chip-blue-text); }
 
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }

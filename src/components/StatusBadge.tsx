@@ -19,11 +19,12 @@ export default function StatusBadge({ status }: { status: string }) {
     <span className={`badge-${status}`} style={{
       display: 'inline-flex',
       alignItems: 'center',
-      padding: '2px 9px',
-      borderRadius: 100,
-      fontSize: 11.5,
-      fontWeight: 600,
+      padding: '3px 11px',
+      borderRadius: 999,
+      fontSize: 12,
+      fontWeight: 500,
       whiteSpace: 'nowrap',
+      letterSpacing: '0.003em',
     }}>
       {LABELS[status] ?? status}
     </span>

@@ -21,33 +21,37 @@ export default function Sidebar() {
 
   return (
     <aside style={{
-      width: 220,
+      width: 228,
       minHeight: '100vh',
       background: '#ffffff',
-      borderRight: '1px solid #eeece8',
+      borderRight: '1px solid var(--border-light)',
       display: 'flex',
       flexDirection: 'column',
       flexShrink: 0,
     }}>
       {/* Logo */}
-      <div style={{ padding: '20px 20px 8px', borderBottom: '1px solid #eeece8' }}>
+      <div style={{ padding: '22px 22px 14px' }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
           {TOFU_LOGO}
           <span style={{
-            color: '#999990',
+            color: 'var(--ink-tertiary)',
             fontSize: 11,
             fontWeight: 500,
             letterSpacing: '0.02em',
-            paddingLeft: 4,
-            borderLeft: '1px solid #dedad4',
+            paddingLeft: 6,
+            borderLeft: '1px solid var(--border)',
             marginLeft: 2,
           }}>Dispatch</span>
         </Link>
       </div>
 
       {/* Nav */}
-      <nav style={{ padding: '12px 12px', flex: 1 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#999990', padding: '0 8px 8px' }}>
+      <nav style={{ padding: '4px 14px', flex: 1 }}>
+        <div style={{
+          fontSize: 11, fontWeight: 600, textTransform: 'uppercase',
+          letterSpacing: '0.08em', color: 'var(--ink-tertiary)',
+          padding: '6px 10px 10px',
+        }}>
           Workspace
         </div>
         {nav.map(({ href, label, icon: Icon }) => {
@@ -56,15 +60,15 @@ export default function Sidebar() {
             <Link key={href} href={href} style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 9,
-              padding: '8px 10px',
-              borderRadius: 7,
+              gap: 10,
+              padding: '9px 10px',
+              borderRadius: 8,
               marginBottom: 2,
               textDecoration: 'none',
-              fontSize: 13.5,
+              fontSize: 14,
               fontWeight: active ? 600 : 500,
-              color: active ? '#1a1a18' : '#555550',
-              background: active ? '#f2ede6' : 'transparent',
+              color: active ? 'var(--ink)' : 'var(--ink-secondary)',
+              background: active ? 'var(--bg-warm)' : 'transparent',
               transition: 'background 0.15s, color 0.15s',
             }}>
               <Icon active={active} />
@@ -75,9 +79,9 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom */}
-      <div style={{ padding: '12px 20px 20px', borderTop: '1px solid #eeece8' }}>
-        <div style={{ fontSize: 11, color: '#999990' }}>Manager view</div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18', marginTop: 2 }}>James Martinez</div>
+      <div style={{ padding: '14px 22px 22px', borderTop: '1px solid var(--border-light)' }}>
+        <div style={{ fontSize: 11, color: 'var(--ink-tertiary)' }}>Manager view</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginTop: 2 }}>James Martinez</div>
       </div>
     </aside>
   )
