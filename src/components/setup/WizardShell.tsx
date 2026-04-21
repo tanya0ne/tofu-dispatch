@@ -110,9 +110,9 @@ export default function WizardShell({
           {title}
         </h1>
         {intro && (
-          <p style={{ fontSize: 15, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>
+          <div style={{ fontSize: 15, color: 'var(--ink-secondary)', lineHeight: 1.5 }}>
             {intro}
-          </p>
+          </div>
         )}
       </div>
 

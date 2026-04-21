@@ -26,18 +26,43 @@ export default async function DoneStep() {
     'full'
 
   const visitInfo = state.visit.scheduledAt ? fmtDateTime(state.visit.scheduledAt) : null
+  const workerName = state.worker.name ?? 'your worker'
+
+  const introFull = (
+    <>
+      <span>Tomorrow at 6:30am, the bot will message {workerName} their schedule for the day.</span>
+      <ul style={{
+        margin: '14px 0 14px 18px',
+        padding: 0,
+        lineHeight: 1.55,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+      }}>
+        <li>
+          <strong>WhatsApp</strong> — instant pings when {workerName} confirms, arrives, or needs a decision.
+        </li>
+        <li>
+          <strong>Dashboard</strong> — live view of every visit and everyone&apos;s status. This is where you run the day.
+        </li>
+      </ul>
+      <span>The bot handles 80% on its own. You step in only when it asks.</span>
+    </>
+  )
+
+  const introNoVisit = (
+    <>The bot is connected and your dashboard is ready. But there are no visits yet — so tomorrow morning will be quiet.</>
+  )
+
+  const introNoWorker = (
+    <>Your dashboard is live, but without a worker the bot has nobody to coordinate. Add one when you&apos;re ready — here or straight from WhatsApp.</>
+  )
 
   return (
     <WizardShell
       step="done"
       title={variant === 'full' ? `You're all set, ${ownerName}.` : `You're connected, ${ownerName}.`}
-      intro={
-        variant === 'full'
-          ? `Tomorrow at 6:30am, the bot will message ${state.worker.name ?? 'your worker'} about this visit. When they confirm, you'll get a WhatsApp notification — no dashboard needed.`
-          : variant === 'no-visit'
-          ? `The bot is connected and ready. But it has no visits yet — so tomorrow morning will be quiet.`
-          : `Without a worker, the bot has nobody to message yet. Add one whenever you're ready — here or straight from WhatsApp.`
-      }
+      intro={variant === 'full' ? introFull : variant === 'no-visit' ? introNoVisit : introNoWorker}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
@@ -82,10 +107,10 @@ export default async function DoneStep() {
             color: 'var(--ink-secondary)',
             lineHeight: 1.55,
           }}>
-            Want to add a visit now? Just message the bot on WhatsApp — dictate it in one line:<br/>
+            Add your first visit — either here on the dashboard, or by dictating to the bot:
             <code style={{
               display: 'block',
-              marginTop: 8,
+              marginTop: 10,
               padding: '8px 12px',
               background: 'var(--bg-warm)',
               borderRadius: 8,
@@ -98,19 +123,33 @@ export default async function DoneStep() {
           </div>
         )}
 
+        {/* CTAs — primary depends on variant */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <Link href="/dashboard" style={{ ...btnPrimary, textDecoration: 'none' }}>
-            Open dashboard →
-          </Link>
-          {variant === 'full' && (
-            <Link href="/setup/visit" style={{ ...btnSecondary, textDecoration: 'none' }}>
-              Add another visit
-            </Link>
-          )}
-          {variant === 'no-worker' && (
-            <Link href="/setup/worker" style={{ ...btnSecondary, textDecoration: 'none' }}>
-              Add worker now
-            </Link>
+          {variant === 'no-worker' ? (
+            <>
+              <Link href="/setup/worker" style={{ ...btnPrimary, textDecoration: 'none' }}>
+                Add worker now →
+              </Link>
+              <Link href="/dashboard" style={{ ...btnSecondary, textDecoration: 'none' }}>
+                Open dashboard
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/dashboard" style={{ ...btnPrimary, textDecoration: 'none' }}>
+                Open dashboard →
+              </Link>
+              {variant === 'full' && (
+                <Link href="/setup/visit" style={{ ...btnSecondary, textDecoration: 'none' }}>
+                  Add another visit
+                </Link>
+              )}
+              {variant === 'no-visit' && (
+                <Link href="/chat" style={{ ...btnSecondary, textDecoration: 'none' }}>
+                  Message the bot
+                </Link>
+              )}
+            </>
           )}
         </div>
 
